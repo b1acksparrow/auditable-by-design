@@ -13,3 +13,9 @@ paper/*.aux
 paper/*.log
 paper/*.out
 paper/*.pdf
+
+# Leftover benchmark state (recreated by bench/bench_timing.py) and build logs
+results/v2/state-*.sqlite
+results/v2/state-*.sqlite-wal
+results/v2/state-*.sqlite-shm
+zk/build.log

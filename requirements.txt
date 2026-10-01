@@ -1,0 +1,2 @@
+liboqs-python==0.16.0
+pytest>=8

@@ -36,7 +36,7 @@ Usage:
 Trials, transcripts and a summary are written to OUTDIR as they complete, so an
 interrupted run (for example at a subscription usage limit) resumes with --resume.
 Each trial's archive, retained checkpoint and trust configuration are written to
-OUTDIR/archives/ for offline re-verification; bench/advisor_rescore.py re-scores a run.
+OUTDIR/advisor_archives/ for offline re-verification; bench/advisor_rescore.py re-scores a run.
 """
 
 import argparse
@@ -416,7 +416,7 @@ def run_trial(trial: dict, backend, condition: str = 'hardened',
                    'policy_registry': registry.to_json(), 'verified_at': now, 'delta_s': DELTA_S}
         with open(os.path.join(archive_dir, name), 'w') as fh:
             json.dump(archive, fh)
-        rec['archive'] = 'archives/' + name
+        rec['archive'] = 'advisor_archives/' + name
     rec.update({
         'outcome': tx.status,
         'closed': tx.status == CLOSED,

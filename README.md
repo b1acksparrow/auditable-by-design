@@ -21,7 +21,9 @@ results/*.json  earlier fixture measurements (superseded)
 
 ## Requirements
 
-* Python 3.12+, `liboqs-python` 0.16 (ML-KEM-768, ML-DSA-65), `pytest`
+* Python 3.12+, `liboqs-python` 0.16 (ML-KEM-768, ML-DSA-65), `pytest` (`pip install -r requirements.txt`;
+  without a system liboqs, `liboqs-python` builds liboqs into `~/_oqs` on first import, which needs git,
+  CMake and a C compiler)
 * `pdflatex` with `IEEEtran.cls` (a copy is in `paper/`) for the manuscript
 * Optional, for the zero-knowledge tests and benchmark: a Rust toolchain and the RISC Zero toolchain
   matching `risc0-zkvm` 3.0.6; build with `cargo build --release` in `zk/` (produces
@@ -39,6 +41,11 @@ python3 -m pytest -v  # the regression suite alone
 
 `results/v2/archives/` (about 5 GB of scaling archives) is not in the repository; `./build.sh --bench`
 regenerates it with `bench/bench_scaling.py`.
+
+Advisor runs: each trial's archive, retained checkpoint and trust configuration are in
+`results/v2/advisor-*/advisor_archives/` (the hardened run has no per-trial archives). In the retained
+`trials.jsonl` files the `archive` field still reads `archives/<name>`; the directory was renamed so that
+it is never confused with the scaling benchmark's `archives/`.
 
 ## What the implementation enforces
 
