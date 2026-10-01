@@ -1,6 +1,6 @@
 """Build the three manuscript variants from one source.
 
-  auditable-by-design.tex  submission: main text only (TDSC limit: 12 pages including references and biography)
+  auditable-by-design.tex  submission: submission: main text only (12 pages)
   supplement.tex           supplementary material; cross-references to and from the main text via xr-hyper
   arxiv.tex                extended version: main text with the supplementary sections as appendices
 
