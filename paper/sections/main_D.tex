@@ -1,0 +1,50 @@
+\section{Evidence Construction and Audit Verification}
+\label{sec:evidence}
+
+\subsection{Record Structure and Signed Provenance}
+Every terminal transaction, and an unresolved one when archived, yields a record of separately authenticated statements, which keeps observed facts, approval decisions with their gate outcomes, and AI-generated interpretations apart. The source observer signs the snapshot (state version, configuration, peer capabilities, and implementations) with its capture time and freshness limit. The unsigned proposal is bound by its action digest; it references the observation and, for an LLM advisor, the retained transcript and context documents by digest. The approver signs the observation and action digests, expected state version, policy version and digest, issue and expiry times, permitted recovery target, and gate outcomes. The executor's receipt carries the before- and after-versions, applied configuration digest, and durable apply time; the outcome observer signs what it observes. The evidence service signs an envelope binding the section digests, status, log identity, index, and previous chain head; a witness signs a checkpoint over the new head. Tables~\ref{tab:fields} and~\ref{tab:controls} (supplementary material) list the fields and map the evidence to selected controls of NIST SP 800-53 Rev.~5~\cite{sp80053}, as an assessment aid, not an official NIST crosswalk.
+
+Audit records may be retained for years, and a quantum computer that breaks RSA and elliptic-curve signatures could forge statements signed with them, an instance of what NSA calls the ``Trust Now, Forge Later'' threat~\cite{nsaarmor}. Signatures therefore use ML-DSA~\cite{fips204} (ML-DSA-65 in the reference implementation; Section~\ref{sec:limits}) with one key per role; this yields authenticated statements under the stated key assumptions, not legal non-repudiation.
+
+\subsection{Chaining, Checkpoints, and Retention}
+\label{sec:chain}
+Let $E_i$ be the envelope statement of record $i$. The chain head is
+\begin{equation}
+\label{eq:chain}
+h_i = H(\Enc(\text{event}, i, h_{i-1}, E_i)),
+\end{equation}
+where $h_{-1}$ is a fixed genesis value, $\Enc$ is the canonical encoding, and $H$ is SHA-384 over a versioned purpose label, a zero byte, and the encoded data. The encoder accepts only a subset of the value space of the JSON Canonicalization Scheme (JCS)~\cite{jcs} on which its output coincides with JCS, and rejects all other values (Section~\ref{sec:proto}).
+
+At intervals bounded by $\Delta$, an external witness signs and retains a checkpoint of the log identity, sequence number, chain head, and witness time; the reference implementation checkpoints every record. The verifier recomputes the chain to an independently retained checkpoint, supplied separately, never read from the archive, and requires a trusted witness signature, the expected log identity, coverage of the last record, and an age of at most $\Delta$. Detecting a log that shows verifiers different histories requires comparing their checkpoints; the reference implementation has one in-process witness and compares no checkpoints between verifiers (Section~\ref{sec:limits}).
+
+If the latest trustworthy checkpoint precedes a compromise by at most $\Delta$, at most $\Delta$ of history is exposed to undetectable rewriting. The bound is retrospective: a continuing compromise can append false records until it is contained. A missed checkpoint voids the bound and is reportable. Checkpoints reveal deletion but do not restore evidence, so records require independent retention.
+
+\subsection{Reconciliation and Coverage}
+Chaining authenticates a presented history, not its completeness. Reconciliation must therefore compare authorizations, the executor's durable journal, current state versions, and independent observations; the reference implementation reconciles only an unresolved attempt, comparing its journal entry with the state. Every execution attempt needs an authorization and a terminal or unresolved status, and rejected proposals are retained. Within an exclusively mediated change interface, durable monotonic versions and one-time consumption expose missing receipts and duplicated attempts.
+
+An archived unresolved record is never rewritten; a single resolution record with the same identifier, the same authorization, and the status recovered or failed is appended.
+
+Interfaces outside the executor must be removed or monitored as documented exceptions, and periodic discovery, which the reference implementation lacks, must search for unmanaged assets. Inventory completeness remains unproven, so the audit package states its coverage and exceptions.
+
+\subsection{Semantic Verification Obligations}
+\label{sec:semantic}
+A valid signature shows who made a statement, not that it is consistent with the transaction, the cited policy, or the archive. The verifier addresses an adversary that holds valid role keys and can therefore issue correctly signed but mutually inconsistent statements and re-sign envelopes to re-chain an altered archive. Beyond schema, digest, signature, and chain-link validity, the verifier enforces these obligations on every record:
+\begin{enumerate}[\renewcommand{\labelenumi}{(\roman{enumi})}\renewcommand{\theenumi}{\roman{enumi}}\IEEEsetlabelwidth{(xiii)}]
+\item The outer transaction identifier equals the identifier inside every signed statement.
+\item The authorization binds the observation digest and the action digest that the receipt also binds; the envelope binds exactly the sections present, for every status.
+\item $\Allowed_v$ is recomputed for the cited version $v$: permitted action, the same policy version in proposal and authorization, the proposal's profile named by the authorization, an allowlisted profile with exact configuration at or above the floor, and the policy digest.
+\item The observation was fresh at authorization under the smaller of its declared limit and the policy limit.
+\item The receipt's before-version equals the authorized version and its after-version is the successor, with continuity per asset.
+\item For closed and recovered transactions, the independently observed profile, configuration digest, and version equal those of the receipt and the authorized target.
+\item Every authorization digest is used once, apart from the resolution record of (xiii).
+\item A rejected transaction carries no receipt or outcome.
+\item The final head equals an independently retained, timely checkpoint for the expected log.
+\item $\Compatible$ is recomputed from the signed snapshot, not taken from the authorizer's gate record.
+\item The approval lifetime lies within the cited policy's TTL, and the recovery target is isolation or an allowlisted profile at or above the floor.
+\item Every signed statement carries its own time, at which its key is valid, for every role including the evidence service and the witness.
+\item Only known statuses occur, and at most one resolution record follows a transaction archived as unresolved.
+\end{enumerate}
+
+Obligations (iii) except the policy digest, (iv), (vii), (x), and (xi) apply only to authorized decisions; a denial may record a stale observation or an unlisted profile. The verifier also checks envelope indices and non-decreasing times, that outcomes follow receipts, and that execution, timed at the durable apply time, lies between authorization and expiry. All obligations are checked in one streaming pass whose retained state (previous head, last version per asset, transaction identifiers, authorization digests, and transactions awaiting resolution) holds no record and grows linearly with the number of transactions (Section~\ref{sec:scale}).
+
+These obligations reject correctly signed evidence that is inconsistent within a record, with the cited policy, with earlier records, or with the retained checkpoint, but not a fabricated history consistent in all these respects (the signing-key compromise case of Table~\ref{tab:failures}, supplementary material). Signers assert statement times: (xii) excludes a key outside its stated validity period, but a key holder can choose any time within it that the ordering checks admit. The implementation enforces all thirteen obligations, each with a rejection test (Section~\ref{sec:tests}).

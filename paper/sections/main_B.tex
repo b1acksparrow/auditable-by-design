@@ -1,0 +1,41 @@
+\section{Background and Related Work}
+\label{sec:related}
+
+\subsection{PQC Migration and Cryptographic Agility}
+N\"ather et~al.\ find inconsistent migration terminology, phases, and roles~\cite{naether}; Meta's enterprise account covers inventory, dependencies, implementation, and guardrails~\cite{meta}. NIST Cybersecurity White Paper (CSWP) 39 describes crypto-agility practices~\cite{cswp39}, and draft CSWP 48 maps PQC migration capabilities to the NIST Cybersecurity Framework 2.0 and to NIST Special Publication (SP) 800-53 controls~\cite{cswp48}. These sources state what an organization should control; this paper specifies how a single configuration change is permitted, executed, and evidenced.
+
+\subsection{AI-Assisted Migration and Runtime Governance}
+Kim et~al.\ automate a staged hybrid PQC-TLS migration in a policy-as-code pipeline; in 43.6\% of trials with a response, errors in LLM-generated migration code escaped static validation and surfaced only at runtime~\cite{kimpqc}. Han shows that LLM agents editing server configurations from ordinary engineering prose produced validated post-quantum downgrades in 40 of 40 episodes, and argues that no single peer can soundly gate post-quantum delivery~\cite{han}. Both results support keeping AI output from deciding or recording a change. Section~\ref{sec:tls} reproduces the silent downgrade and detects it with a panel of reference clients.
+
+Mazzocchetti's Aegis enforces cryptographic runtime policy for autonomous AI systems~\cite{aegis} and mediates model action proposals through trusted policy decisions and fail-closed execution~\cite{mazz2}; Beshane binds policy decisions to the exact policy source with durable signed receipts~\cite{beshane}. AID-Guard revalidates an exactly approved request and the provider state at commit time and yields at most one provider effect across retry and recovery; it is evaluated against live providers and under complete proposer compromise~\cite{aidguard}. AIREP separates decision, control, execution, and effect evidence, anchors chain heads to witnesses, and states that its assurance classes do not establish event truth~\cite{airep}.
+
+Table~\ref{tab:related} lists these mechanisms as prior work; AID-Guard evaluates effect paths more broadly. This paper specializes them to cryptographic-configuration transitions: allowlisted profiles matched exactly, freshness bound to the observed peer capabilities and implementations, and recovery restricted to service isolation or a profile at or above a security floor (Section~\ref{sec:arch}).
+
+\subsection{Tamper-Evident and Post-Quantum Evidence}
+Schneier and Kelsey introduced hash-chained logs that keep entries written before a compromise tamper-evident~\cite{schneier}; Crosby and Wallach add membership and consistency proofs~\cite{crosby}; Certificate Transparency specifies publicly auditable append-only logs~\cite{ct}. The in-toto framework verifies role-signed supply-chain steps against a layout and so rejects validly signed but inconsistent chains~\cite{intoto}. Kao formalizes post-quantum audit evidence~\cite{kao}, and an Internet-Draft profiles ML-DSA-65-signed, canonically encoded, hash-chained receipts for AI-agent actions~\cite{asqav}. Section~\ref{sec:evidence} follows this practice. The obligations of Section~\ref{sec:semantic} apply the layout principle of in-toto to authorization semantics, against an adversary holding valid role keys; as with AIREP, an internally consistent false history remains possible until the compromise is contained.
+
+\subsection{Explanation, Evidence, and Confidentiality}
+Feature-attribution methods explain model predictions~\cite{shap,lime}, but an attribution neither authorizes a change nor observes the deployed configuration. Explanations can also leak protected information~\cite{shokri}; in migration the leak is direct when the requested explanation is itself a protected policy parameter, which no more faithful explanation avoids. Kroll et~al.\ propose commitments and zero-knowledge proofs to hold decisions under a secret policy accountable~\cite{kroll}. Gopalakrishna implements zero-knowledge predicate proofs between AI agents with Bulletproofs and a public threshold, and tests enclave-attested source binding only against a mock authority~\cite{gopalakrishna}. The relation of Section~\ref{sec:zk} hides the policy parameters and the measured input behind commitments, binds the public statement to the action digest also bound by the authorization and the receipt, and uses hash-based succinct receipts instead of discrete-logarithm-based Bulletproofs; its zero-knowledge property is an assumption.
+
+\begin{table}[t]
+\caption{Relationship to Selected Prior Work}
+\label{tab:related}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{>{\raggedright\arraybackslash}p{2.55cm}>{\raggedright\arraybackslash}p{2.6cm}>{\raggedright\arraybackslash}p{2.75cm}}
+\toprule
+Work & Established there & Added here \\
+\midrule
+PQC guidance and migration~\cite{cswp39,cswp48,naether,meta} & Agility practices, control mappings, migration phases & Enforcement and evidence per configuration change \\
+\addlinespace[2pt]
+AI in PQC migration~\cite{kimpqc,han} & LLM code errors; agent downgrades; single-peer gating unsound & Advisor under injected prose; containment of proposer compromise; client panel \\
+\addlinespace[2pt]
+Runtime governance~\cite{aegis,mazz2,beshane,aidguard,airep} & Proposal and authority separated; exact-action approval; commit-time revalidation; decision evidence & Profile, dependency-freshness, and recovery-floor conditions; checks against key holders \\
+\addlinespace[2pt]
+Tamper-evident and post-quantum evidence~\cite{schneier,crosby,ct,intoto,kao,asqav} & Hash chains, witnesses, role and post-quantum signatures, layout checks & Binding to an enforcing contract; obligations over authorization semantics \\
+\addlinespace[2pt]
+Explanation and zero-knowledge predicates~\cite{shap,lime,shokri,kroll,gopalakrishna} & Attribution, leakage, secret-policy accountability, public-threshold proofs & Hidden-parameter predicate bound to the authorized action \\
+\bottomrule
+\end{tabular}
+\end{table}

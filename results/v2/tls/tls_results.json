@@ -1,0 +1,378 @@
+{
+  "tools": {
+    "nginx": "nginx version: nginx/1.30.0",
+    "openssl": "OpenSSL 3.6.2 7 Apr 2026 (Library: OpenSSL 3.6.2 7 Apr 2026)"
+  },
+  "reference_clients": {
+    "legacy_classical": [
+      "X25519"
+    ],
+    "x25519_hybrid": [
+      "X25519MLKEM768",
+      "X25519"
+    ],
+    "p256_hybrid": [
+      "SecP256r1MLKEM768",
+      "secp256r1"
+    ],
+    "pqc_strict": [
+      "MLKEM768"
+    ]
+  },
+  "base_config": "SecP256r1MLKEM768:X25519MLKEM768:X25519:secp256r1",
+  "base_config_valid": true,
+  "base": {
+    "port": 37875,
+    "groups_configured": "SecP256r1MLKEM768:X25519MLKEM768:X25519:secp256r1",
+    "per_client": {
+      "legacy_classical": {
+        "offered": [
+          "X25519"
+        ],
+        "returncode": 0,
+        "handshake_completed": true,
+        "hello_retry": false,
+        "serverhello_group": "ecdh_x25519",
+        "summary_group": "X25519",
+        "handshake_ok": true,
+        "http_ok": true,
+        "negotiated_group": "ecdh_x25519",
+        "negotiated_class": "classical"
+      },
+      "x25519_hybrid": {
+        "offered": [
+          "X25519MLKEM768",
+          "X25519"
+        ],
+        "returncode": 0,
+        "handshake_completed": true,
+        "hello_retry": false,
+        "serverhello_group": "X25519MLKEM768",
+        "summary_group": "X25519MLKEM768",
+        "handshake_ok": true,
+        "http_ok": true,
+        "negotiated_group": "X25519MLKEM768",
+        "negotiated_class": "hybrid-pqc"
+      },
+      "p256_hybrid": {
+        "offered": [
+          "SecP256r1MLKEM768",
+          "secp256r1"
+        ],
+        "returncode": 0,
+        "handshake_completed": true,
+        "hello_retry": false,
+        "serverhello_group": "SecP256r1MLKEM768",
+        "summary_group": "SecP256r1MLKEM768",
+        "handshake_ok": true,
+        "http_ok": true,
+        "negotiated_group": "SecP256r1MLKEM768",
+        "negotiated_class": "hybrid-pqc"
+      },
+      "pqc_strict": {
+        "offered": [
+          "MLKEM768"
+        ],
+        "returncode": 1,
+        "handshake_completed": false,
+        "hello_retry": false,
+        "serverhello_group": null,
+        "summary_group": null,
+        "handshake_ok": false,
+        "http_ok": false,
+        "negotiated_group": null,
+        "negotiated_class": null
+      }
+    }
+  },
+  "scenarios": {
+    "A": {
+      "removed_group": "X25519MLKEM768",
+      "config": "SecP256r1MLKEM768:X25519:secp256r1",
+      "config_valid": true,
+      "config_still_valid_and_serves": true,
+      "after": {
+        "port": 37875,
+        "groups_configured": "SecP256r1MLKEM768:X25519:secp256r1",
+        "per_client": {
+          "legacy_classical": {
+            "offered": [
+              "X25519"
+            ],
+            "returncode": 0,
+            "handshake_completed": true,
+            "hello_retry": false,
+            "serverhello_group": "ecdh_x25519",
+            "summary_group": "X25519",
+            "handshake_ok": true,
+            "http_ok": true,
+            "negotiated_group": "ecdh_x25519",
+            "negotiated_class": "classical"
+          },
+          "x25519_hybrid": {
+            "offered": [
+              "X25519MLKEM768",
+              "X25519"
+            ],
+            "returncode": 0,
+            "handshake_completed": true,
+            "hello_retry": true,
+            "serverhello_group": "ecdh_x25519",
+            "summary_group": "X25519",
+            "handshake_ok": true,
+            "http_ok": true,
+            "negotiated_group": "ecdh_x25519",
+            "negotiated_class": "classical"
+          },
+          "p256_hybrid": {
+            "offered": [
+              "SecP256r1MLKEM768",
+              "secp256r1"
+            ],
+            "returncode": 0,
+            "handshake_completed": true,
+            "hello_retry": false,
+            "serverhello_group": "SecP256r1MLKEM768",
+            "summary_group": "SecP256r1MLKEM768",
+            "handshake_ok": true,
+            "http_ok": true,
+            "negotiated_group": "SecP256r1MLKEM768",
+            "negotiated_class": "hybrid-pqc"
+          },
+          "pqc_strict": {
+            "offered": [
+              "MLKEM768"
+            ],
+            "returncode": 1,
+            "handshake_completed": false,
+            "hello_retry": false,
+            "serverhello_group": null,
+            "summary_group": null,
+            "handshake_ok": false,
+            "http_ok": false,
+            "negotiated_group": null,
+            "negotiated_class": null
+          }
+        }
+      },
+      "detection": {
+        "per_class": {
+          "legacy_classical": {
+            "before": "classical",
+            "after": "classical"
+          },
+          "x25519_hybrid": {
+            "before": "hybrid-pqc",
+            "after": "classical"
+          },
+          "p256_hybrid": {
+            "before": "hybrid-pqc",
+            "after": "hybrid-pqc"
+          },
+          "pqc_strict": {
+            "before": null,
+            "after": null
+          }
+        },
+        "downgraded": [
+          {
+            "client_class": "x25519_hybrid",
+            "from": "hybrid-pqc",
+            "to": "classical"
+          }
+        ],
+        "any": true,
+        "silent": true,
+        "hard_failed_clients": [],
+        "single_peer_legacy_classical_would_miss": true,
+        "single_peer_x25519_hybrid_would_miss": false,
+        "single_peer_p256_hybrid_would_miss": true,
+        "single_peer_pqc_strict_would_miss": true
+      }
+    },
+    "B": {
+      "removed_group": "SecP256r1MLKEM768",
+      "config": "X25519MLKEM768:X25519:secp256r1",
+      "config_valid": true,
+      "config_still_valid_and_serves": true,
+      "after": {
+        "port": 37875,
+        "groups_configured": "X25519MLKEM768:X25519:secp256r1",
+        "per_client": {
+          "legacy_classical": {
+            "offered": [
+              "X25519"
+            ],
+            "returncode": 0,
+            "handshake_completed": true,
+            "hello_retry": false,
+            "serverhello_group": "ecdh_x25519",
+            "summary_group": "X25519",
+            "handshake_ok": true,
+            "http_ok": true,
+            "negotiated_group": "ecdh_x25519",
+            "negotiated_class": "classical"
+          },
+          "x25519_hybrid": {
+            "offered": [
+              "X25519MLKEM768",
+              "X25519"
+            ],
+            "returncode": 0,
+            "handshake_completed": true,
+            "hello_retry": false,
+            "serverhello_group": "X25519MLKEM768",
+            "summary_group": "X25519MLKEM768",
+            "handshake_ok": true,
+            "http_ok": true,
+            "negotiated_group": "X25519MLKEM768",
+            "negotiated_class": "hybrid-pqc"
+          },
+          "p256_hybrid": {
+            "offered": [
+              "SecP256r1MLKEM768",
+              "secp256r1"
+            ],
+            "returncode": 0,
+            "handshake_completed": true,
+            "hello_retry": true,
+            "serverhello_group": "secp256r1",
+            "summary_group": "prime256v1",
+            "handshake_ok": true,
+            "http_ok": true,
+            "negotiated_group": "secp256r1",
+            "negotiated_class": "classical"
+          },
+          "pqc_strict": {
+            "offered": [
+              "MLKEM768"
+            ],
+            "returncode": 1,
+            "handshake_completed": false,
+            "hello_retry": false,
+            "serverhello_group": null,
+            "summary_group": null,
+            "handshake_ok": false,
+            "http_ok": false,
+            "negotiated_group": null,
+            "negotiated_class": null
+          }
+        }
+      },
+      "detection": {
+        "per_class": {
+          "legacy_classical": {
+            "before": "classical",
+            "after": "classical"
+          },
+          "x25519_hybrid": {
+            "before": "hybrid-pqc",
+            "after": "hybrid-pqc"
+          },
+          "p256_hybrid": {
+            "before": "hybrid-pqc",
+            "after": "classical"
+          },
+          "pqc_strict": {
+            "before": null,
+            "after": null
+          }
+        },
+        "downgraded": [
+          {
+            "client_class": "p256_hybrid",
+            "from": "hybrid-pqc",
+            "to": "classical"
+          }
+        ],
+        "any": true,
+        "silent": true,
+        "hard_failed_clients": [],
+        "single_peer_legacy_classical_would_miss": true,
+        "single_peer_x25519_hybrid_would_miss": true,
+        "single_peer_p256_hybrid_would_miss": false,
+        "single_peer_pqc_strict_would_miss": true
+      }
+    }
+  },
+  "panel": {
+    "scenarios_detected_by_single_peer": {
+      "legacy_classical": [],
+      "x25519_hybrid": [
+        "A"
+      ],
+      "p256_hybrid": [
+        "B"
+      ],
+      "pqc_strict": []
+    },
+    "panel_detects_all": true,
+    "single_peers_detecting_all": [],
+    "no_single_peer_detects_all_but_panel_does": true
+  },
+  "probe_wall_time": {
+    "process_start_baseline": {
+      "command": "openssl version",
+      "n": 10,
+      "median_ms": 3.94
+    },
+    "per_class": {
+      "legacy_classical": {
+        "ok": true,
+        "n": 10,
+        "median_probe_wall_ms_incl_process_start": 12.83,
+        "median_probe_minus_baseline_ms": 8.89
+      },
+      "x25519_hybrid": {
+        "ok": true,
+        "n": 10,
+        "median_probe_wall_ms_incl_process_start": 9.84,
+        "median_probe_minus_baseline_ms": 5.9
+      },
+      "p256_hybrid": {
+        "ok": true,
+        "n": 10,
+        "median_probe_wall_ms_incl_process_start": 9.72,
+        "median_probe_minus_baseline_ms": 5.78
+      },
+      "pqc_strict": {
+        "ok": false
+      }
+    }
+  },
+  "environment": {
+    "run_conditions": {
+      "power": {
+        "ac_online": true,
+        "battery_status": "Full"
+      },
+      "cpufreq_governors": [
+        "powersave"
+      ],
+      "loadavg_1_5_15": [
+        1.37548828125,
+        4.7919921875,
+        3.43212890625
+      ],
+      "results_filesystem": "/dev/nvme0n1p2 ext4",
+      "waited_for_quiet_s": 0.0
+    },
+    "timestamp_utc": "2026-09-27T01:09:16Z",
+    "python": "3.14.6",
+    "python_implementation": "CPython",
+    "platform": "Linux-6.19.14+kali-amd64-x86_64-with-glibc2.42",
+    "kernel": "6.19.14+kali-amd64",
+    "machine": "x86_64",
+    "cpu_model": "12th Gen Intel(R) Core(TM) i7-12650H",
+    "cpu_count_logical": 16,
+    "mem_total_mib": 15628,
+    "liboqs": "0.16.0",
+    "liboqs_python": "0.16.0",
+    "liboqs_path": "/home/blacksparrow/_oqs/lib/liboqs.so",
+    "compiler": "GCC: (Debian 15.2.0-17) 15.2.0",
+    "sig_algorithm": "ML-DSA-65",
+    "kem_algorithm": "ML-KEM-768",
+    "hash_algorithm": "SHA-384",
+    "sqlite": "3.46.1"
+  }
+}

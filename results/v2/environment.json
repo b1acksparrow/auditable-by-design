@@ -1,0 +1,35 @@
+{
+  "run_conditions": {
+    "power": {
+      "ac_online": true,
+      "battery_status": "Charging"
+    },
+    "cpufreq_governors": [
+      "powersave"
+    ],
+    "loadavg_1_5_15": [
+      0.29052734375,
+      1.779296875,
+      2.58203125
+    ],
+    "results_filesystem": "/dev/nvme0n1p2 ext4",
+    "waited_for_quiet_s": 0.0
+  },
+  "timestamp_utc": "2026-09-27T00:29:18Z",
+  "python": "3.14.6",
+  "python_implementation": "CPython",
+  "platform": "Linux-6.19.14+kali-amd64-x86_64-with-glibc2.42",
+  "kernel": "6.19.14+kali-amd64",
+  "machine": "x86_64",
+  "cpu_model": "12th Gen Intel(R) Core(TM) i7-12650H",
+  "cpu_count_logical": 16,
+  "mem_total_mib": 15628,
+  "liboqs": "0.16.0",
+  "liboqs_python": "0.16.0",
+  "liboqs_path": "/home/blacksparrow/_oqs/lib/liboqs.so",
+  "compiler": "GCC: (Debian 15.2.0-17) 15.2.0",
+  "sig_algorithm": "ML-DSA-65",
+  "kem_algorithm": "ML-KEM-768",
+  "hash_algorithm": "SHA-384",
+  "sqlite": "3.46.1"
+}

@@ -1,0 +1,15 @@
+
+results/v2/archives/
+results/v2-prefix-20260924/
+report/
+RESUME.md
+.arxiv-check/
+
+zk/target/
+__pycache__/
+*.pyc
+.pytest_cache/
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.pdf

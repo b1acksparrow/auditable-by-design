@@ -1,0 +1,23 @@
+{
+  "config": {
+    "warmup": 1,
+    "timed": 3,
+    "sizes": [
+      100000
+    ],
+    "wall_limit_s": 600,
+    "memory_limit_mib": 4096
+  },
+  "results": [
+    {
+      "transactions": 100000,
+      "archive_mib": 4192.299332618713,
+      "build_time_s": 76.58571151399974,
+      "median_verify_s": 30.222277146000124,
+      "p95_verify_s": 32.98388529600015,
+      "peak_rss_mib": 11499.734375,
+      "timing_samples_count": 3,
+      "status": "complete"
+    }
+  ]
+}

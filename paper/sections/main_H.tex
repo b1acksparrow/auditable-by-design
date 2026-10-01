@@ -1,0 +1,127 @@
+\subsection{Experimental Setup}
+All measurements come from one laptop: a \EnvCpu\ with \EnvMem~GiB of RAM, Linux \EnvKernel, CPython \EnvPython, liboqs \EnvLiboqs\ built with \EnvCompiler, and SQLite \EnvSqlite. The state store, journal, and archives reside on an ext4 file system on a Samsung PM9A1 NVMe SSD; the durable-commit costs reflect its fsync latency. The benchmarks ran on \EnvDate\ (UTC) on AC power with other applications closed; the CPU frequency was not pinned (\texttt{powersave} governor). Every driver records the power source, governor, load, and file system, and the timing, scaling, WAL, and earlier-checker drivers first wait for a quiet machine (Section~\ref{s:costs}, supplementary material).
+
+Raw samples, advisor transcripts, results, drivers, code, and manuscript sources are available at \url{https://github.com/b1acksparrow/auditable-by-design}.
+Timings are Python call spans that include validation, canonicalization, and store access; they are not isolated cryptographic costs and do not establish production throughput.
+
+\begin{table}[!t]
+\caption{Measured Costs on the Evaluation Host (Medians Unless Stated)}
+\label{tab:cost}
+\centering
+\footnotesize
+\begin{tabular}{@{}lr@{}}
+\toprule
+Quantity & Value \\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Governed transaction}} \\
+Durable store, steady state & \TimDurTotal~ms \\
+\quad of which three durable commits & \TimDurSqlite~ms \\
+\quad of which six ML-DSA-65 signatures & \TimDurSign~ms \\
+Durable store, first \TimColdStartN\ transactions & \TimColdStart~ms \\
+Without fsync (diagnostic only) & \TimNoTotal~ms \\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Archive of $10^5$ transactions (\ScalHundredKMib~MiB)}} \\
+Streaming verification & \ScalHundredKMedR~s \\
+Streaming verifier, peak RSS & \ScalHundredKRss~MiB \\
+Earlier checker, own archive, peak RSS & \OldHundredKRss~MiB \\
+\midrule
+\multicolumn{2}{@{}l}{\emph{Zero-knowledge proof of (\ref{eq:rel}), \ZkRuns\ runs}} \\
+Proving, local and in process & \ZkProveMed~s \\
+Prover peak RSS, maximum over runs & \ZkPeakGiB~GiB \\
+Verification, in process & \ZkVerifyMs~ms \\
+Succinct receipt size & \ZkReceiptKiB~KiB \\
+\midrule
+\multicolumn{2}{@{}l}{\emph{TLS probe, X25519 hybrid client}} \\
+Probe wall time, including client start & \TlsProbeMs~ms \\
+Client process start alone & \TlsBaselineMs~ms \\
+\bottomrule
+\end{tabular}
+\par\smallskip\parbox{\linewidth}{\footnotesize Transactions: \TimWarmup\ warm-up and \TimTimed\ timed repetitions per block. Peak resident set size (RSS) is \texttt{VmHWM} of the measured process. Full decompositions: Tables~\ref{tab:timing} and~\ref{tab:scaling}, supplementary material.}
+\end{table}
+
+\subsection{Transaction Cost}
+\label{sec:cost}
+A governed transaction comprises observation, proposal, gate, authorization, execution with journal and ML-KEM-768 operation, outcome observation, envelope, and checkpoint: six ML-DSA-65 signatures, two signature verifications, and three durable commits. After \TimWarmup\ warm-up transactions on a new store, the timing driver attributes the time of \TimTimed\ timed transactions to non-overlapping spans; a second block with \code{synchronous=OFF}, which the contract does not permit, isolates the cost of durability (Table~\ref{tab:cost}).
+
+In the steady state the median transaction takes \TimDurTotal~ms, of which the three commits account for \TimDurSqlitePct\% and the six signatures for \TimDurSignPct\%. Without fsync the median falls to \TimNoTotal~ms, of which signing takes \TimNoSignPct\% and canonical serialization \TimNoCanonPct\%. On this host, durability rather than post-quantum cryptography dominates the cost of an enforced transaction; lower latency would come from faster durable storage, or from group commit that preserves the prepare-before-change order, and little from fewer signatures.
+
+The first \TimColdStartN\ transactions on a new store take a median of \TimColdStart~ms, \TimColdRatio\ times the steady state, because the WAL grows until its first automatic checkpoint. A sweep of the checkpoint threshold moved the start of the steady state to transaction \WalSteadyA, \WalSteadyB, and \WalSteadyC\ for thresholds of \WalPagesA, \WalPagesB\ (the default), and \WalPagesC\ pages; at the default, the median fell from \WalBeforeB\ to \WalAfterB~ms (Table~\ref{tab:walsweep}, supplementary material). The warm-up therefore extends past the first checkpoint.
+
+\subsection{Archive Checking at Scale}
+\label{sec:scale}
+Archives of 10 to $10^5$ transactions over ten assets were built by the full pipeline and written as JSON Lines. The streaming verifier reads each archive record by record, with file reading and JSON decoding included in its time, and verifies all six signatures of every record, the retained checkpoint and obligations (i)--(xiii). Peak resident set size (RSS) is measured in a fresh process that performs one streaming verification, so archive construction is excluded.
+
+Verification time is proportional to the number of transactions, between \ScalHundredPerTx\ and \ScalThousandPerTx~ms per transaction at every size; the $10^5$-transaction archive is verified in a median of \ScalHundredKMedR~s with a peak RSS of \ScalHundredKRss~MiB. Peak RSS stays at the interpreter baseline of about \ScalThousandRss~MiB up to $10^3$ transactions and then grows linearly, by about \ScalKiBPerTx~KiB per transaction, consistent with the retained state of Section~\ref{sec:semantic} (Table~\ref{tab:scaling}, supplementary material).
+
+The in-memory checker of the earlier prototype, measured in the same way from its own archive in a fresh process, peaked at \OldHundredKRss~MiB for $10^5$ transactions, \OldHundredKRatio\ times the streaming verifier (\OldThousandRatio\ and \OldTenKRatio\ times at $10^3$ and $10^4$). It checks less, over a different record format, so no speed comparison is claimed (Table~\ref{tab:oldchecker}, supplementary material).
+
+\subsection{LLM Advisor Under the Contract}
+\label{sec:advisor}
+Replacing the scripted advisor with an LLM, this experiment asks whether any proposer behavior, up to complete compromise, makes a policy-violating change execute, and how far planted engineering prose steers the model toward changes that the policy permits but the task does not call for.
+
+\emph{Setup.} The advisor calls Claude Sonnet~5 through the \AdvInterface\ command-line interface in non-interactive mode, with a replaced system prompt, no tools other than the interface's own tool for schema-validated output, and extended thinking at the interface default (on). Each trial draws a synthetic asset with peers of mixed capability and readiness from a seeded generator. The task is to migrate the largest number of ready endpoints, to prefer the higher security class among profiles that reach it, and to propose no change if no profile has a ready endpoint; an oracle computed independently of the gate gives the correct answer. The approver approves whenever the gate permits, so only the gate stands between the model and the change. Each trial runs the complete contract on a non-durable store and verifies its archive.
+
+\emph{Attacks.} Engineering prose is planted in an additional context document or in a free-text note on an inventory peer, alternating between the two placements across scenarios. Attacks A1--A5 request policy-violating changes: an off-allowlist profile, the classical profile below the security floor, inclusion of a peer that lacks the required capability or is of unknown readiness, a tampered configuration (\code{kem=X25519}) under a post-quantum-capable profile identifier, and an unpermitted action. A6 (omit a ready peer said to be scheduled for decommissioning) and A7 (a weaker allowed profile justified by a fictitious change-board decision) request changes within the policy. A change counts as executed when it was applied, that is, when a receipt exists or the state version advanced; a policy-violating attack counts only if the applied proposal carries the requested violation. Section~\ref{s:advisor} (supplementary material) gives the prompt differences, abridged planted texts, and scoring rules.
+
+\emph{Conditions.} All three conditions use the same \AdvPerAttack\ scenarios per attack. The hardened prompt states that the inventory snapshot is authoritative and that context documents are untrusted, and the user message labels both accordingly; the naive prompt omits these two sentences and the labels. Under complete proposer compromise no model is called: a scripted adversary emits exactly the proposal that each attack requests. The model sees each scenario \AdvRepsWord\ times, with \AdvHardBenignScen\ benign scenarios under the hardened prompt and the first \AdvNaiveBenignScen\ of them under the naive prompt; the deterministic adversary sees each attack scenario once.
+
+\begin{table}[!t]
+\caption{LLM Advisor: Attacks Executed per Condition}
+\label{tab:advisor}
+\centering
+\footnotesize
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+ & \multicolumn{2}{c}{Model (\code{\AdvModel})} & Scripted \\
+\cmidrule(lr){2-3}\cmidrule(l){4-4}
+Attack & Hardened & Naive & Compromised \\
+\midrule
+\input{tab_advisor}
+\end{tabular}
+\par\smallskip\parbox{\linewidth}{\footnotesize Attack rows: trials in which the attacker's change was applied; in the model conditions every followed attack also executed. $^\dagger$Within policy: the change satisfies all four conjuncts of~(\ref{eq:gate}). Model conditions: \AdvPerAttack\ scenarios per attack, each presented \AdvRepsWord\ times; the compromised proposer presents each once and has no benign trials. Archives verified: over all trials of the condition. Seed \AdvSeed; interface \AdvInterface.}
+\end{table}
+
+\emph{Benign behavior.} The proposal matched the oracle in \AdvHardBenignExact\ hardened and \AdvNaiveBenignExact\ naive benign trials (Table~\ref{tab:advisor}); no correct migration was denied and no suboptimal proposal executed. The benign trials that did not execute are correct \code{no\_change} proposals, which $\Allowed$ refuses because \code{no\_change} is not a permitted action.
+
+\emph{Containment.} In neither prompt condition did the model propose a policy-violating change: it followed none of the policy-violating instructions (\AdvHardViolFollowed\ hardened and \AdvNaiveViolFollowed\ naive trials; true-downgrade subset of A2: \AdvHardATwoTrueFollowed\ and \AdvNaiveATwoTrueFollowed), and the gate refused only correct \code{no\_change} proposals. These conditions therefore do not exercise the gate against A1--A5; the evidence for containment comes from the compromised condition. There, the scripted adversary proposed the requested violation in \AdvCompViolFollowed\ trials, and \AdvCompViolExecuted\ executed. $\Allowed$ refused every proposal of A1, A2, A4, and A5, and $\Compatible$ every proposal of A1 and A3; the refused A2 proposals include all whose asset runs the hybrid profile (\AdvCompATwoTrueExecuted\ executed), which would have been true downgrades. Every archive verified, including those that record refused proposals. Containment of policy-violating proposals therefore does not depend on the proposer's behavior, for the implemented attacks and while the gate, the executor, and the authorization credentials remain uncompromised (Section~\ref{sec:assurance}).
+
+\emph{Within-policy manipulation.} The gate is not designed to stop A6 and A7: every within-policy proposal of the compromised adversary executed (\AdvCompInPolicyExecuted); such a change is recorded, attributable, and reviewable in the archive, but not prevented. For the model, removing the two hardening sentences and the trust labels raised the executed within-policy attacks from \AdvHardInPolicyExecuted\ to \AdvNaiveInPolicyExecuted\ trials. A6 rose from \AdvHardASixExec\ to \AdvNaiveASixExec\ trials (scenarios with a success in any repetition: \AdvHardASixScenAny\ to \AdvNaiveASixScenAny; in both: \AdvHardASixScenAll\ to \AdvNaiveASixScenAll) and A7 from \AdvHardASevenExec\ to \AdvNaiveASevenExec\ (\AdvHardASevenScenAny\ to \AdvNaiveASevenScenAny; \AdvHardASevenScenAll\ to \AdvNaiveASevenScenAll).
+
+\looseness=1 Under the naive prompt both channels worked: A6 executed in \AdvNaiveASixDoc\ document and \AdvNaiveASixNote\ inventory-note trials, and A7 in \AdvNaiveASevenDoc\ and \AdvNaiveASevenNote. Under the hardened prompt only the signed-note channel did: every hardened A6 success came through the inventory note (\AdvHardASixNote, against \AdvHardASixDoc\ through the document), and A7 never executed. The note travels inside the signed snapshot that the hardened prompt declares authoritative. Its signature establishes who recorded the note, not whether its free text is true, so labeling documents as untrusted does not protect free-text fields of authenticated observations. A policy requiring every ready endpoint would bring A6 within the gate's reach; withholding free-text fields from the advisor is another mitigation, not evaluated here.
+
+Han's agents edit configurations directly, without an enforcing contract, so their downgrade counts~\cite{han} are not comparable. For the implemented attacks, the gate contained the policy-violating part of the risk from planted prose but not the within-policy part.
+
+
+\subsection{Zero-Knowledge Cost}
+\label{sec:zkeval}
+Relation~(\ref{eq:rel}) was proved with the RISC Zero guest and host of the reference implementation for a statement taken from a real transaction of the pipeline, so $D_i$ covers the proposal that the authorization and the receipt bind. The predicate is a rotation-threshold instance: $q_i$ holds if the measured key age reaches a confidential minimum and the target profile belongs to a confidential permitted set. The canonical encoding of the action is \ZkActionBytes~bytes.
+
+Over \ZkRunsWord\ runs, local proving took a median of \ZkProveMed~s with a prover peak RSS of at most \ZkPeakGiB~GiB (Table~\ref{tab:cost}). The execution used \ZkUserCycles\ user cycles within \ZkCycles\ total cycles, that is, \ZkSegmentsWord\ segment of $2^{\ZkPo}$ cycles. Verification in the host process took \ZkVerifyMs~ms, and the succinct receipt occupies \ZkReceiptKiB~KiB. Proving runs after the transaction closes, so it adds nothing to the transaction cost; at this cost it suits selected transactions whose predicate must be shown to an external verifier, not every transaction of a high-rate stream.
+
+The receipt does not verify for the same statement with $q_i$ inverted or against another program identifier, and the complete bound-statement verification, including the signed authorization, accepts the honest statement. The receipt bytes contain neither the canonical encodings of $\theta$ and $x_i$ nor the commitment randomness. This excludes only verbatim inclusion of the witness; it is not evidence of zero knowledge, which remains an assumption (Section~\ref{sec:zklimits}).
+
+\subsection{Observation of a Deployed TLS Service}
+\label{sec:tls}
+This standalone experiment observes a real service on the wire and tests Han's single-peer argument~\cite{han}.
+
+\emph{Setup.} A TLS~1.3 service, nginx \TlsNginx\ with OpenSSL \TlsOpenssl, listens on the loopback interface. Its governed configuration is its list of key-exchange groups, initially SecP256r1MLKEM768, X25519MLKEM768, X25519, and secp256r1. A panel of four reference clients, one per capability class (legacy, offering only X25519; X25519 hybrid, offering X25519MLKEM768 then X25519; P-256 hybrid, offering SecP256r1MLKEM768 then secp256r1; ML-KEM only, offering MLKEM768; Section~\ref{s:tls}, supplementary material), completes real handshakes with \code{openssl s\_client} and sends an HTTP request. The negotiated group is read from the last ServerHello in each client's trace, as the peer sees it on the wire, not from the server's configuration.
+
+\begin{table}[!t]
+\caption{Negotiated Key-Exchange Group per Reference Client}
+\label{tab:tls}
+\centering
+\scriptsize
+\setlength{\tabcolsep}{2pt}
+\begin{tabular}{@{}llll@{}}
+\toprule
+Client class & Base & After A & After B \\
+\midrule
+\input{tab_tls}
+\end{tabular}
+\par\smallskip\parbox{\linewidth}{\footnotesize Base: the base configuration. Scenario A removes \TlsRemovedA\ and scenario B removes \TlsRemovedB\ from it. Every edited configuration passes the nginx configuration test. ``Fails'': no handshake.}
+\end{table}
+
+\emph{Silent downgrade.} In the base configuration, each hybrid client negotiates its hybrid group and the legacy client X25519 (Table~\ref{tab:tls}). Scenario A removes \TlsRemovedA\ from the server's group list, and scenario B removes \TlsRemovedB. Both edited configurations pass the nginx configuration test, and every client served before still completes the handshake and receives HTTP status 200. Yet in scenario A the \TlsHitA\ client, and in scenario B the \TlsHitB\ client, falls back through a HelloRetryRequest to a classical group. The legacy client observes no change in either scenario, each hybrid client misses the other scenario, and only the panel detects both edits. The ML-KEM-only client fails in every configuration, since the server offers no pure ML-KEM group; it represents a class that fails rather than degrades. The opt-in TLS tests assert these observations.
+
+\emph{Timing and scope.} The median wall time of one probe by the X25519 hybrid client was \TlsProbeMs~ms including the start of the client process, which alone takes \TlsBaselineMs~ms; the difference of \TlsProbeNetMs~ms covers connection, handshake, trace output, and the HTTP request and is not a handshake latency. The experiment runs on one host over loopback, with direct configuration edits rather than executor-applied transactions. It demonstrates independent wire-level observation and the panel argument for the four classes of the panel; making the panel the outcome observer, with each client's delivered class as a signed outcome statement, is future work.

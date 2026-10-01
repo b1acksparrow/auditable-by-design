@@ -1,0 +1,11 @@
+\section{Assurance Arguments}
+\label{sec:assurance}
+The supplementary material illustrates a migration (Section~\ref{sec:scenario}) and maps failure cases to the arguments below (Table~\ref{tab:failures}).
+
+\emph{Authorization.} Assume that every governed change passes through an uncompromised executor and that the gate, policy registry, and authorization credentials are trustworthy. Re-evaluation of~(\ref{eq:gate}) at execution, against the current state and the approved observation, and durable one-time consumption then restrict every applied change to the exact action of a valid, unused authorization. This establishes neither policy adequacy nor the absence of ungoverned interfaces.
+
+\emph{Verified archive.} If role and witness keys are also uncompromised and the verifier's inputs are authentic, an archive that meets the obligations of Section~\ref{sec:semantic} shows, for each authorized transaction, a single-use approval of an allowed, exact action on a fresh observation in which every listed endpoint is compatible; for each closed or recovered transaction, an outcome matching the receipt and the authorized target; and a history ending at the retained checkpoint. It establishes who stated what, not truth, and covers neither changes outside the management boundary nor drift after closure. A holder of valid role keys can still fabricate a history that passes verification.
+
+\emph{Containment.} Neither argument trusts the advisor: under complete proposer compromise and automatic approval, \AdvCompViolExecuted\ policy-violating proposals executed, whereas \AdvCompInPolicyExecuted\ within-policy manipulations did (Section~\ref{sec:advisor}). Enforcement cannot distinguish a manipulated but permitted choice (Section~\ref{sec:model}) from a legitimate one; the archive makes it attributable, and only the approver or a stricter policy can prevent it.
+
+\emph{Confidential predicates.} Acceptance of~(\ref{eq:rel}) establishes the relation for the bound input and action under the binding, attestation, program-correctness, and soundness assumptions of Section~\ref{sec:zk}; for the instantiation, soundness is conjectured at \ZkEndBits~bits (toy model). Confidentiality also assumes hiding commitments and an unproven zero-knowledge property~\cite{risc0sec}. Acceptance is not evidence of the model's reasoning.

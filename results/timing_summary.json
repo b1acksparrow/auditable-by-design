@@ -1,0 +1,44 @@
+{
+  "ML-DSA signing": {
+    "median_ns": 652497.0,
+    "median_ms": 0.652497,
+    "p95_ns": 993817.55,
+    "p95_ms": 0.99381755
+  },
+  "Canonical serialization": {
+    "median_ns": 84473.5,
+    "median_ms": 0.0844735,
+    "p95_ns": 122034.9,
+    "p95_ms": 0.12203489999999999
+  },
+  "Hashing (SHA-384)": {
+    "median_ns": 12084.5,
+    "median_ms": 0.0120845,
+    "p95_ns": 17192.850000000006,
+    "p95_ms": 0.017192850000000006
+  },
+  "Hex encoding": {
+    "median_ns": 14171.5,
+    "median_ms": 0.0141715,
+    "p95_ns": 20762.15,
+    "p95_ms": 0.02076215
+  },
+  "Everything else": {
+    "median_ns": 61482.0,
+    "median_ms": 0.061482,
+    "p95_ns": 91996.65,
+    "p95_ms": 0.09199665
+  },
+  "Instrumented total": {
+    "median_ns": 834179.5,
+    "median_ms": 0.8341795,
+    "p95_ns": 1199592.2000000002,
+    "p95_ms": 1.1995922
+  },
+  "Uninstrumented total": {
+    "median_ns": 854020.0,
+    "median_ms": 0.85402,
+    "p95_ns": 1140588.1500000001,
+    "p95_ms": 1.1405881500000001
+  }
+}

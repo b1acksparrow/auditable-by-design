@@ -1,0 +1,90 @@
+\section{Migration Decision Classes}
+\label{s:decisions}
+Table~\ref{tab:decisions}, cited from the design requirements of Section~\ref{sec:model}, groups migration decisions by class and gives, for each class, the permitted contribution of the artificial intelligence (AI) advisor and the control and evidence that the decision requires. The reference implementation governs only profile migrations, which belong to the algorithm and parameter selection class, and records a permitted recovery target for each approval; the other classes describe the intended scope of the contract and are not implemented.
+
+\begin{table*}[!t]
+\caption{Migration Decision Classes, Permitted AI Contribution, and Required Evidence}
+\label{tab:decisions}
+\centering
+\begin{tabular}{>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{5.4cm}>{\raggedright\arraybackslash}p{6.6cm}}
+\toprule
+Decision class & Permitted AI contribution & Required control and evidence \\
+\midrule
+Discovery and inventory & Suggest cryptographic uses and dependencies & Confirmed asset owner, source provenance, coverage and uncertainty \\
+Risk prioritization & Rank assets and explain relevant factors & Approved risk criteria and recorded human adjustments \\
+Algorithm and parameter selection & Propose a permitted target profile & Protocol support, security requirements, and implementation status \\
+Hybrid deployment choice & Compare approved transition profiles & Approved combiner and protocol specification; compatibility evidence \\
+Key and certificate lifecycle & Propose rotation or replacement scheduling & Key management system (KMS) or public key infrastructure (PKI) authorization, lifecycle rules, and operation receipts \\
+Rollout scheduling & Suggest order and canary population & Dependency approval, exposure limits, and health criteria \\
+Exception or recovery & Explain alternatives and impact & Separate authority, expiry, security floor, and recovery verification \\
+Monitoring and closure & Identify deviations and summarize outcomes & Independent observations, reconciliation, and closure approval \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Transaction States, Durable Execution, and Reconciliation}
+\label{s:lifecycle}
+This section details the transaction of Section~\ref{sec:txn} and the lifecycle summarized in Section~\ref{sec:lifecycle}. Fig.~\ref{fig:states} shows the transaction states of the reference implementation. A proposal becomes evaluated when the pre-approval evaluation of the first three conjuncts of~(\ref{eq:gate}) is recorded, and authorized when the approver signs an authorization. A failed conjunct, a declined approval, or a recovery target that the policy does not permit ends the transaction as rejected, and the approver's signed denial is retained with its reason. The transaction is prepared when it is handed to the executor. If the executor's re-evaluation of all four conjuncts fails, the transaction is rejected, the managed state is untouched, and the approval remains unconsumed. If the approval has already been consumed, the durable consumption record refuses it, and the transaction is likewise rejected.
+
+\begin{figure}[!t]
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+  st/.style={draw,rounded corners=2pt,font=\scriptsize,minimum height=5mm,minimum width=1.4cm,inner sep=2pt},
+  term/.style={st,fill=black!8},
+  arr/.style={-{Latex[length=1.8mm]},thick},
+  lbl/.style={font=\scriptsize,inner sep=1pt,align=center}]
+% main path
+\node[st]   (p)  at (0,0)  {proposed};
+\node[st]   (e)  at (0,-1) {evaluated};
+\node[st]   (a)  at (0,-2) {authorized};
+\node[st]   (pr) at (0,-3) {prepared};
+\node[st]   (x)  at (0,-4) {executed};
+\node[st]   (v)  at (0,-5) {verified};
+\node[term] (c)  at (0,-6) {closed};
+% branches
+\node[term] (r)  at (3.1,-1.4) {rejected};
+\node[st]   (u)  at (3.1,-3)   {unresolved};
+\node[term] (rc) at (5.6,-3)   {recovered};
+\node[term] (f)  at (3.1,-5)   {failed};
+% main transitions (labels left of the arrows)
+\draw[arr] (p)  -- node[lbl,left=2pt]{pre-approval gate} (e);
+\draw[arr] (e)  -- node[lbl,left=2pt]{signed approval} (a);
+\draw[arr] (a)  -- node[lbl,left=2pt]{to executor} (pr);
+\draw[arr] (pr) -- node[lbl,left=2pt]{consume, CAS} (x);
+\draw[arr] (x)  -- node[lbl,left=2pt]{outcome matches} (v);
+\draw[arr] (v)  -- (c);
+% branch transitions
+\draw[arr] (e.east) -- node[lbl,above=1pt,sloped]{denied} (r.west);
+\draw[arr] (pr.north east) -- node[lbl,above=1pt,sloped,pos=0.5]{re-check fails} (r.south);
+\draw[arr] (pr.east) -- node[lbl,above=1pt]{crash} (u.west);
+\draw[arr] (pr.south east) -- node[lbl,above=1pt,sloped,pos=0.5]{version conflict} (f.north west);
+\draw[arr] (x.east) -- node[lbl,below=1pt,sloped,pos=0.5]{drift} (f.west);
+\draw[arr] (u.south) -- node[lbl,right=2pt]{not applied /\\diverged} (f.north);
+\draw[arr] (u.east) -- node[lbl,above=2pt]{reconcile} (rc.west);
+\node[lbl,anchor=west,text width=4.9cm,align=left] at (1.0,-6) {While a transaction is unresolved, a new change on the same asset is refused.};
+\end{tikzpicture}
+\caption{Transaction states of the reference implementation; shaded states are terminal. A transaction is prepared when it is handed to the executor, which re-evaluates~(\ref{eq:gate}) and, only if all conjuncts hold, durably consumes the approval together with a journal entry, performs the controlled operation, and applies the compare-and-set (CAS); the signed receipt makes the transaction executed. The re-check edge also covers an approval that has already been consumed. The version-conflict edge also covers an approval that expires before the apply commit and a failure of the controlled operation. A crash after consumption and before the receipt leaves the transaction unresolved. After a late receipt the outcome is observed independently before the transaction is marked recovered; a mismatch ends it as failed. Every terminal state, and an unresolved state when archived, yields a signed envelope and a checkpoint.}
+\label{fig:states}
+\end{figure}
+
+Otherwise one durable commit consumes the approval and records the execution attempt in the journal before any change begins. The executor then performs the controlled operation, which in the reference implementation is a key encapsulation and decapsulation with the Module-Lattice-Based Key-Encapsulation Mechanism (ML-KEM) at parameter set ML-KEM-768, followed by a comparison of the two shared secrets; a failure of that operation ends the attempt as failed. The apply commit re-checks the expiry of the approval and performs the CAS on the state version; an approval that has expired in the meantime, or a state version that no longer matches, ends the attempt as failed. In each failed case the managed state is unchanged and the consumed approval cannot be reused, so a retry requires reassessment and a new approval. A successful apply commit also marks the journal entry applied; the executor then signs a receipt that carries the time recorded with the apply commit, and the transaction is executed.
+
+The outcome observer then reads the resulting state through a read-only connection to the store. If the observed state version, profile, or configuration digest differs from the receipt or from the authorized target, or the observed configuration fails the health checks (its profile is not allowlisted, or its configuration differs from the allowlisted one), the transaction fails on drift; otherwise it is verified and closed. A transaction that failed on drift keeps its receipt and outcome observation, and its archive verifies.
+
+A configuration update and a remote evidence write are not assumed to be one atomic operation. A deployment therefore needs a durable local journal, idempotent operations, and reconciliation. If the executor stops after the attempt has been recorded but before its receipt is recorded, the transaction remains unresolved. While it is unresolved, $\Fresh$ fails for every new proposal on the same asset, so no further change is authorized or executed there. A reconciler compares the journal entry with the authoritative state; absence of a receipt is never interpreted as evidence that no change occurred. If the journal marks the change as applied and the state holds the successor version with the target configuration, the reconciler issues a late receipt whose apply time is taken from the journal. The outcome is then observed independently, as for any executed transaction; a matching observation ends the transaction as recovered, and a mismatch ends it as failed. If the state is still at the expected version, the change was not applied, and the transaction ends as failed with its approval consumed. A state that matches neither is recorded as diverged, and the transaction also ends as failed; the reconciler reports such a state but does not repair it. The reference implementation injects crashes, as exceptions within one process, after the consumption commit and after the apply commit; the reconciler combines the durable journal, which stores only the action digest, with the proposal and authorization still held in memory. Restarts, simulated by reopening the store, are exercised only for one-time consumption.
+
+An unresolved transaction may be archived before it is reconciled, so that the incomplete attempt is visible. Its resolution is then appended as exactly one further record under the same transaction identifier, carrying the same authorization and the status recovered or failed, instead of rewriting the archived record; the verifier accepts at most one such record per transaction. Every terminal transaction, and an unresolved one when archived, yields an envelope signed by the evidence service and a witness checkpoint.
+
+When a new migration cannot be safely authorized, the currently approved state is preserved. This is fail-closed behavior of the change path, not a shutdown of the existing service. Emergency interventions require a separately authorized process whose actions and evidence obligations are explicit; the reference implementation provides no such process.
+
+\section{Deployment Considerations and Operational Rationale}
+\label{s:rationale}
+This section expands the pre-change checks and staged rollout that Section~\ref{sec:recovery} leaves to deployment practice, and covers module validation, operational rationale, and confidence.
+
+\emph{Pre-change checks and staged rollout.} In a deployment, pre-change checks cover both sides of the intended communication path, shared dependencies, protocol negotiation, certificate and trust-store behavior, resource budgets, and required operational tooling. Rollout proceeds through a test environment and a bounded canary where the system supports them, and the outcome observer checks the negotiated profile, authentication behavior, configuration digests, and predefined health conditions before rollout expands. Apart from $\Compatible$ and the outcome comparison of Section~\ref{s:lifecycle}, the reference implementation performs none of these checks and no staged rollout.
+
+\emph{Module validation and migration surfaces.} Where formal module validation is required, the record identifies the actual certificate, module version, approved operating mode, and relevant limitations; calling an ML-KEM implementation does not establish that the enclosing product is validated under Federal Information Processing Standard (FIPS) 140. Key establishment, digital signatures, certificate handling, and stored-data protection are tracked as separate migration surfaces. Deploying post-quantum key establishment does not by itself migrate authentication, historical signatures, or every downstream dependency.
+
+\emph{Operational rationale.} The evidence service is intended to produce a concise rationale from verified transaction fields: the migration objective, selected profile, supporting observations, rejected alternatives, approval basis, and observed outcome. Model-generated explanations are retained as advisory artifacts with their provenance and are not relabeled as independently established facts. In the reference implementation the complete prompt and response of the language model are retained as a transcript whose domain-separated digest the proposal references, and the model's own rationale is kept only as an advisory field of the proposal; generation of the verified-field rationale is not implemented.
+
+\emph{Confidence.} Confidence is optional and carries its definition and calibration reference when used; missing or uncalibrated confidence is stated explicitly. The reference implementation records the model's self-reported confidence only as an uncalibrated note, and no conjunct of~(\ref{eq:gate}) reads it. A structured reason, such as an approved profile match or a recorded dependency constraint, is preferable to a fabricated numerical assurance score.

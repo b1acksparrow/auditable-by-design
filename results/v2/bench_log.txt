@@ -1,0 +1,133 @@
+liboqs-python faulthandler is disabled
+wal_autocheckpoint=  250: steady from tx 24, median 24.8 ms -> 7.0 ms
+wal_autocheckpoint= 1000: steady from tx 122, median 25.0 ms -> 6.8 ms
+wal_autocheckpoint= 4000: steady from tx 495, median 25.2 ms -> 7.0 ms
+liboqs-python faulthandler is disabled
+== 10 transactions: building...
+   built in 0.0s, 0.45 MiB; streaming verify x20+200...
+   streaming median 0.0063s; fresh-process peak RSS 29.4 MiB
+== 100 transactions: building...
+   built in 0.1s, 4.46 MiB; streaming verify x20+200...
+   streaming median 0.0626s; fresh-process peak RSS 29.4 MiB
+== 1,000 transactions: building...
+   built in 1.5s, 44.57 MiB; streaming verify x20+200...
+   streaming median 0.6376s; fresh-process peak RSS 30.2 MiB
+== 10,000 transactions: building...
+   built in 20.3s, 445.82 MiB; streaming verify x5+20...
+   streaming median 6.3154s; fresh-process peak RSS 38.0 MiB
+== 100,000 transactions: building...
+   built in 863.7s, 4458.83 MiB; streaming verify x2+5...
+   streaming median 62.7228s; fresh-process peak RSS 115.4 MiB
+liboqs-python faulthandler is disabled
+run 1/3: prove 65.7s, receipt 224212 B, cycles 524288, peak 3.92 GiB, verified True
+run 2/3: prove 68.1s, receipt 224212 B, cycles 524288, peak 4.23 GiB, verified True
+run 3/3: prove 67.9s, receipt 224212 B, cycles 524288, peak 4.57 GiB, verified True
+{
+  "summary": {
+    "runs": 3,
+    "prove_s_median": 67.861631869,
+    "verify_ms_median": 11.714927999999999,
+    "receipt_bytes": 224212,
+    "journal_bytes": 493,
+    "peak_rss_kib_max": 4791620,
+    "total_cycles": 524288,
+    "user_cycles": 305611,
+    "segments": 1,
+    "segment_po2": 19,
+    "control_id": "8c2fdd36ede09a4b9d316a43c51f1160cbd8876659c5f35810c3a119c60d3843",
+    "recursion_program": "lift_rv32im_v2_19",
+    "lift_po2": 19,
+    "action_bytes": 911,
+    "soundness": null
+  },
+  "negative_checks": {
+    "flipped_result_rejected": true,
+    "other_program_rejected": true,
+    "bound_statement_verifies": true,
+    "secrets_absent_from_receipt": true,
+    "encoding_vectors_match": true
+  },
+  "encoding_vectors": {
+    "escapes": {
+      "journal_matches": true,
+      "q_i": true,
+      "journal_bytes": 456,
+      "total_cycles": 262144,
+      "user_cycles": 177064,
+      "segments": 1,
+      "segment_po2s": [
+        18
+      ]
+    },
+    "negatives_nulls_empties": {
+      "journal_matches": true,
+      "q_i": false,
+      "journal_bytes": 454,
+      "total_cycles": 262144,
+      "user_cycles": 164233,
+      "segments": 1,
+      "segment_po2s": [
+        18
+      ]
+    },
+    "nested": {
+      "journal_matches": true,
+      "q_i": true,
+      "journal_bytes": 466,
+      "total_cycles": 524288,
+      "user_cycles": 203353,
+      "segments": 1,
+      "segment_po2s": [
+        19
+      ]
+    }
+  }
+}
+liboqs-python faulthandler is disabled
+delivered protection by client class:
+  class             base                      A: -X25519MLKEM768        B: -SecP256r1MLKEM768     detects
+  legacy_classical  classical                 classical                 classical                 -
+  x25519_hybrid     hybrid-pqc                classical (LOST)          hybrid-pqc                A
+  p256_hybrid       hybrid-pqc                hybrid-pqc                classical (LOST)          B
+  pqc_strict        failed                    failed                    failed                    -
+scenario A: config SecP256r1MLKEM768:X25519:secp256r1 still validates and serves: True; hard failures: []
+scenario B: config X25519MLKEM768:X25519:secp256r1 still validates and serves: True; hard failures: []
+panel detects all scenarios: True | single peers detecting all: [] | no single peer suffices: True
+process-start baseline (openssl version): 3.94 ms
+  legacy_classical   probe wall time incl. process start 12.83 ms (minus baseline 8.89 ms, n=10)
+  x25519_hybrid      probe wall time incl. process start 9.84 ms (minus baseline 5.9 ms, n=10)
+  p256_hybrid        probe wall time incl. process start 9.72 ms (minus baseline 5.78 ms, n=10)
+........................................................................ [ 43%]
+........................................................................ [ 86%]
+.....................F                                                   [100%]
+=================================== FAILURES ===================================
+_________ test_soundness_calculator_matches_the_vendor_reference_value _________
+
+    @needs_host
+    def test_soundness_calculator_matches_the_vendor_reference_value():
+>       snd = ZK.soundness()
+              ^^^^^^^^^^^^^^
+
+tests/test_zk.py:120: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+abd/predicate.py:254: in soundness
+    return self._run('soundness')
+           ^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <abd.predicate.RiscZeroBackend object at 0x7fa92fe01550>
+args = ('soundness',)
+env = {'ABD_TLS': '1', 'ABD_ZK': '1', 'AI_AGENT': 'claude-code_2-1-283_agent', 'CLAUDECODE': '1', ...}
+
+    def _run(self, *args) -> dict:
+        env = {k: v for k, v in os.environ.items() if k not in self._STRIPPED_ENV}
+        out = subprocess.run([self.host, *args], capture_output=True, text=True, timeout=self.timeout_s, env=env)
+        if out.returncode != 0:
+>           raise RuntimeError(f'abd-zk-host {args[0]} failed: {out.stderr.strip()[-500:]}')
+E           RuntimeError: abd-zk-host soundness failed: usage: abd-zk-host image-id | execute WITNESS.json | prove WITNESS.json RECEIPT.bin | verify RECEIPT.bin IMAGE_ID
+
+abd/predicate.py:249: RuntimeError
+=========================== short test summary info ============================
+FAILED tests/test_zk.py::test_soundness_calculator_matches_the_vendor_reference_value
+1 failed, 165 passed in 59.82s
+exit=1

@@ -1,0 +1,94 @@
+\section{System Model and Requirements}
+\label{sec:model}
+
+\subsection{Assets, Actors, and the Management Boundary}
+The managed estate contains services, endpoints, protocol implementations, cryptographic modules, trust stores, and administrative interfaces. Each asset has an owner, a versioned configuration, dependencies (its peers and the implementations present on it), and an applicable migration profile.
+
+The architecture separates logical roles. The source observer signs snapshots of an asset; the AI advisor proposes changes; the policy authority owns the versioned policy; the approver (the authorizer role) signs or declines each change; the executor alone writes managed state; an outcome observer measures the result independently of the executor's report; the evidence service chains the signed statements and obtains checkpoints from an external witness; and the verifier checks the archive against its own trust configuration and policy registry. Roles that one administrator can modify are not independent; the reference implementation runs all roles in one process (Section~\ref{sec:limits}). Claims of complete mediation and coverage apply only inside the management boundary, the declared set of governed assets and change interfaces.
+
+\subsection{Adversary and Failure Model}
+The advisor is untrusted: its output may be wrong, stale, or steered by injected instructions, and the most adverse proposer considered is fully compromised. While the gate, the executor, and the policy remain uncompromised, a policy-violating proposal is refused however it was produced. A manipulated choice among permitted actions, such as omitting a ready peer or selecting a weaker allowed profile, passes the gate (Section~\ref{sec:txn}); only the approver or a stricter policy can reject it. Section~\ref{sec:advisor} measures both cases.
+
+The adversary may also be an insider holding valid role keys. A signature then shows only who made a statement, so the verifier must reject validly signed but mutually inconsistent statements (Section~\ref{sec:semantic}); consistent false statements remain possible until the compromise is contained. Failures are crash faults: a role may stop at any point, including between consuming an approval and recording its receipt. The chain and a retained checkpoint expose altered or removed records but not unrecorded transactions, which only reconciliation within the management boundary can reveal (Section~\ref{sec:evidence}).
+
+The trusted computing base for enforced changes comprises the policy evaluator, the executor and its durable state, the access controls on managed configuration, and the observers' measurement path; evidence integrity adds signing-key protection and the retained checkpoints. Module validation assures only the module's evaluated scope~\cite{fips140}.
+
+\subsection{Design Requirements}
+\begin{enumerate}[\renewcommand{\labelenumi}{R\arabic{enumi}}\renewcommand{\theenumi}{R\arabic{enumi}}\IEEEsetlabelwidth{R8}]
+\item Scope: each transaction identifies its asset, objective, policy version, and profile.
+\item Bounded AI authority: model output cannot authorize a change, edit the policy, or generate secrets.
+\item Validation: authorization requires fresh state, an allowlisted configuration, compatible dependencies, and a valid approval.
+\item Controlled execution: a change applies only to the approved asset, configuration, and state version; each approval is consumed at most once.
+\item Outcome evidence: completion requires an observation independent of the executor's report.
+\item Traceability: proposals, denials, approvals, attempts, and failures remain linked; an unresolved attempt blocks further changes to its asset.
+\item Protected evidence: records are authenticated, retained, and checkpointed outside the operator's unilateral control.
+\item Explicit limits: each audit claim states its scope, evidence source, and trust assumptions.
+\end{enumerate}
+Table~\ref{tab:decisions} (supplementary material) maps migration decision classes to the permitted AI contribution and the required evidence.
+
+\section{Proposed Migration Architecture}
+\label{sec:arch}
+
+\subsection{Separation of Proposal, Authorization, and Execution}
+Fig.~\ref{fig:arch} shows the control and evidence paths.
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+  box/.style={draw,rounded corners=1pt,align=center,font=\scriptsize,minimum height=7mm,inner sep=2pt,text width=1.6cm},
+  gate/.style={box,fill=black!8},
+  arr/.style={-{Latex[length=2mm]},thick},
+  ev/.style={-{Latex[length=2mm]},dashed},
+  lab/.style={font=\scriptsize,inner sep=1pt,align=center}]
+\node[box]  (inv)  at (0,0)       {Inventory and\\observation};
+\node[box]  (ai)   at (3.2,0)     {AI advisor};
+\node[gate] (gate) at (6.4,0)     {Policy and\\approval gate};
+\node[box]  (ver)  at (0,-1.7)    {Outcome\\observer};
+\node[box]  (svc)  at (3.2,-1.7)  {Managed\\service};
+\node[gate] (exe)  at (6.4,-1.7)  {Controlled\\executor};
+\node[box]  (evd)  at (3.2,-3.4)  {Evidence\\service};
+\node[box]  (wit)  at (6.4,-3.4)  {Checkpoint\\witness};
+% control path (solid)
+\draw[arr] (inv) -- node[lab,above=1pt]{snapshot} (ai);
+\draw[arr] (ai) -- node[lab,above=1pt]{proposal} (gate);
+\draw[arr] (gate) -- node[lab,left=2pt]{authorized\\transaction} (exe);
+\draw[arr] (exe) -- node[lab,above=1pt]{apply} (svc);
+\draw[arr] (svc) -- node[lab,above=1pt]{read} (ver);
+% evidence path (dashed), routed outside the boxes
+\draw[ev] (inv.west) -- ++(-0.25,0) |- ([yshift=-1.2mm]evd.west);
+\draw[ev] (ver.south) |- ([yshift=1.2mm]evd.west);
+\draw[ev] (exe.south) -- ++(0,-0.35) -| ([xshift=4mm]evd.north);
+\draw[ev] (gate.east) -- ++(0.25,0) |- ([yshift=-3.5mm]evd.south) -- (evd.south);
+\draw[ev] (evd) -- (wit);
+\end{tikzpicture}
+\caption{Migration architecture. AI output reaches the managed service only through the policy and approval gate and the controlled executor; the gate evaluates the same signed snapshot that the advisor receives. The outcome observer reads the resulting state through its own read-only path, not from the executor. Dashed edges carry signed statements to the evidence service, which chains them and obtains checkpoints from an external witness.}
+\label{fig:arch}
+\end{figure}
+The advisor receives the signed snapshot, the active allowlist, a task, and untrusted context documents, and holds no configuration credentials or signing keys. It returns a typed, unsigned proposal: asset, action, target profile with its exact configuration, endpoints, evidence digests, alternatives, and uncertainty. The invoking service, not the model, fixes the transaction identifier, asset, and policy version; the model's choices are escaped to printable ASCII but never repaired, so an unacceptable choice is refused.
+
+Each policy version fixes the permitted actions, an allowlist of profiles, a security floor (the minimum security class for migration and recovery targets), a freshness limit, and a maximum approval lifetime (time-to-live, TTL). A profile fixes protocol, key exchange, cipher configuration, security class, required peer capability, and implementation. A proposed configuration must equal the allowlisted one exactly, so a classical key exchange under a hybrid profile's identifier is refused.
+
+\subsection{The Migration Transaction}
+\label{sec:txn}
+Let $x_i$ be the signed observation for transaction $i$, $a_i$ the proposed action, $s_i$ the current state of the asset, $v_i$ the active policy version, and $u_i$ the signed authorization. The gate computes
+\begin{multline}
+\label{eq:gate}
+b_i = \Fresh(x_i,s_i) \wedge \Allowed_{v_i}(a_i) \wedge \Compatible(a_i,x_i) \\
+\wedge \Authorized(u_i,x_i,a_i,s_i,v_i),
+\end{multline}
+and $b_i=1$ permits one execution attempt. The state $s_i$ comprises the version, configuration, peers with capabilities and readiness, implementations, and whether an attempt on the asset is unresolved. No conjunct reads a model confidence score.
+
+$\Fresh$ requires the snapshot in $x_i$ to equal $s_i$, no attempt on the asset to await reconciliation, and the age of $x_i$ to lie between zero and the smaller of its declared limit and the active policy's limit. $\Allowed_{v_i}$ requires the proposal to cite $v_i$ and a permitted action, and its target profile to be allowlisted, with an exactly equal configuration, at or above the floor. $\Compatible$ requires every proposed endpoint to appear in the snapshot with known readiness and the profile's required capability, and the profile's implementation to be present; it checks declared capabilities, not what every peer will negotiate~\cite{han}.
+
+$\Authorized$ requires a validly signed authorization bound to $x_i$: the observation presented for execution must carry a valid source signature and the digest and transaction identifier that the authorization binds, so a re-observed or substituted observation is refused. The authorization must match the transaction identifier, asset, and action digest of the complete proposal, the active policy version and the digest of its content, and the current state version. It is also rejected if it is dated in the future, has expired, has a lifetime above the policy's TTL, was signed by a key not valid at execution time, or names an impermissible recovery target (Section~\ref{sec:recovery}).
+
+The first three conjuncts are evaluated before approval; if one fails, the approver signs a denial. Immediately before acting, the executor evaluates all four against the then-current state; only this evaluation can permit a change. Because the approval binds $x_i$, a later change of the asset's version, configuration, or dependencies, of the policy, or of the proposal invalidates it. If all four hold, one durable commit consumes the approval and journals the attempt. The executor then performs the controlled operation; a second commit re-checks the approval's expiry, applies the configuration by a compare-and-set (CAS) on the state version, and marks the attempt applied. Expiry at that commit, a version conflict, or a failed operation ends the attempt as failed, with the state unchanged and the approval consumed. The consumption record refuses a replayed approval even when every conjunct holds, including after a restart. The CAS guards only the state version; equality of the dependencies is established before the consumption commit and is not re-checked at the apply commit.
+
+\subsection{Transaction Lifecycle and Interrupted Changes}
+\label{sec:lifecycle}
+A transaction moves from proposed through evaluated, authorized, prepared, executed, and verified to closed; rejected, failed, and recovered are terminal branches, and unresolved is non-terminal (Fig.~\ref{fig:states}, supplementary material). A denial, a failed re-evaluation, or an already consumed approval ends it as rejected. After the receipt, the outcome observer reads the resulting state; a difference from the receipt or the authorized target, or a failed health check, ends the transaction as failed. A crash after consumption and before the receipt leaves it unresolved, and $\Fresh$ then fails for every new proposal on the asset. A reconciler compares the journal with the authoritative state and never reads a missing receipt as a missing change: an applied change yields a late receipt dated from the journal and, after a matching outcome observation, recovered; an unapplied change yields failed; any other state is reported as diverged and failed. If the unresolved transaction was already archived, its resolution is appended as one record that the verifier accepts once (Section~\ref{s:lifecycle}, supplementary material).
+
+\subsection{Compatibility, Staged Deployment, and Recovery}
+\label{sec:recovery}
+Broader pre-change checks and staged rollout (Section~\ref{s:rationale}, supplementary material) are left to deployment practice; the reference implementation checks only $\Compatible$. Because one peer does not establish what peers of other capability classes negotiate~\cite{han}, outcome observation should use a panel of reference peers. The contract's outcome observer instead reads the store through a read-only view; panel observation of a deployed TLS service is a separate experiment (Section~\ref{sec:tls}).
+
+Every approval names a recovery target, which must be service isolation or an allowlisted profile at or above the floor. The approver denies any other target with a recorded reason; an approval that a key holder signs with one anyway is refused by $\Authorized$ and flagged by the verifier (Section~\ref{sec:semantic}). By default the approver names the current profile if it meets the floor and isolation otherwise, so a model cannot obtain a below-floor fallback by invoking availability. The implementation records but does not execute recovery and has no exception path; recovered denotes an interrupted change confirmed by reconciliation, not a rollback.

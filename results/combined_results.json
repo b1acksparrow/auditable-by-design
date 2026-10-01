@@ -1,0 +1,38 @@
+{
+  "benchmark_date": "2026-09-09",
+  "system": {
+    "python": "3.14.6",
+    "platform": "Linux 6.19.14+kali-amd64",
+    "liboqs": "0.16.0",
+    "sig_algorithm": "ML-DSA-65",
+    "kem_algorithm": "ML-KEM-768",
+    "hash_algorithm": "SHA-384"
+  },
+  "task2_timing_decomposition": {
+    "protocol": "20 warm-up + 200 timed repetitions, 6 signing roles per transaction",
+    "results": {
+      "ML-DSA signing":           {"median_ms": 0.652, "p95_ms": 0.994, "share_pct": 78.2},
+      "Canonical serialization":  {"median_ms": 0.084, "p95_ms": 0.122, "share_pct": 10.1},
+      "Hashing (SHA-384)":        {"median_ms": 0.012, "p95_ms": 0.017, "share_pct": 1.4},
+      "Hex encoding":             {"median_ms": 0.014, "p95_ms": 0.021, "share_pct": 1.7},
+      "Everything else":          {"median_ms": 0.061, "p95_ms": 0.092, "share_pct": 7.4},
+      "Instrumented total":       {"median_ms": 0.834, "p95_ms": 1.200},
+      "Uninstrumented total":     {"median_ms": 0.854, "p95_ms": 1.141}
+    },
+    "instrumentation_overhead_pct": -2.3,
+    "signing_calls_per_tx": 6
+  },
+  "task3_verification_scaling": {
+    "protocol_small": "20 warm-up + 200 timed full verifications (10, 100, 1000 txns)",
+    "protocol_10k": "5 warm-up + 20 timed (10000 txns)",
+    "protocol_100k": "1 warm-up + 3 timed (100000 txns)",
+    "results": [
+      {"transactions":     10, "median_verify_s": 0.0029, "p95_verify_s": 0.0033, "peak_rss_mib":    29.7, "archive_mib":    0.42, "per_tx_ms": 0.288, "status": "complete"},
+      {"transactions":    100, "median_verify_s": 0.0292, "p95_verify_s": 0.0313, "peak_rss_mib":    49.5, "archive_mib":    4.19, "per_tx_ms": 0.292, "status": "complete"},
+      {"transactions":   1000, "median_verify_s": 0.3017, "p95_verify_s": 0.3486, "peak_rss_mib":   248.3, "archive_mib":   41.91, "per_tx_ms": 0.302, "status": "complete"},
+      {"transactions":  10000, "median_verify_s": 3.0449, "p95_verify_s": 3.2525, "peak_rss_mib":  1308.3, "archive_mib":  419.18, "per_tx_ms": 0.305, "status": "complete"},
+      {"transactions": 100000, "median_verify_s": 30.222, "p95_verify_s": 32.984, "peak_rss_mib": 11499.7, "archive_mib": 4192.30, "per_tx_ms": 0.302, "status": "complete"}
+    ],
+    "linearity": "per-transaction cost ratio 1.06x across all 5 sizes — approximately linear"
+  }
+}

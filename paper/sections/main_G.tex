@@ -1,0 +1,23 @@
+\section{Reference Implementation and Evaluation}
+\label{sec:proto}
+
+\subsection{Implementation}
+The reference implementation is a Python package (CPython \EnvPython) with modules for the gate, durable store, roles, lifecycle (with fault injection and reconciliation), verifier, predicate binding, and an LLM advisor (Section~\ref{sec:advisor}); a Rust workspace holds the zero-knowledge host and guest. It signs with ML-DSA-65 and performs its controlled operation, an ML-KEM-768 encapsulation round trip, through liboqs \EnvLiboqs\ and its Python binding~\cite{liboqs}; digests are SHA-384 with purpose labels.
+
+\emph{Roles and gate.} Each of the seven signing roles holds one ML-DSA-65 key; a signer refuses a statement labeled with another role, and all roles run in one process (Section~\ref{sec:limits}). The advisor holds no key. Each conjunct of (\ref{eq:gate}) returns a named result and a reason.
+
+\emph{Durable state.} Configuration, per-asset versions, the execution journal, and consumed authorization digests reside in SQLite \EnvSqlite\ with write-ahead logging (WAL) and fsync-backed commits (\code{synchronous=FULL}). Only the executor holds a writable connection; the observers read through a separate read-only connection, on which the engine rejects writes. \emph{Prepare} consumes the authorization under a uniqueness constraint and journals the attempt in one commit; \emph{apply} re-checks expiry and performs the CAS with the applied mark in a second; a third records the receipt digest. A version conflict, expiry at \emph{apply}, or failure of the controlled operation ends the attempt as failed with the state unchanged (Listing~\ref{lst:gate}, supplementary material).
+
+\emph{Encoding and verifier.} The canonical encoder accepts printable-ASCII strings and keys, booleans, null, integers within $\pm(2^{53}-1)$, arrays, and objects, and rejects all other input. On this subset of the JCS value space~\cite{jcs}, JCS serialization reduces to sorted keys, no whitespace, shortest integer form, and JSON string escaping, which the encoder emits. The verifier streams a JSON Lines archive. Trust configuration, policy registry, log identity, reference time, $\Delta$, and the retained checkpoint are explicit inputs, never read from the archive. It checks each signature at its statement's own time and implements obligations (i)--(xiii) of Section~\ref{sec:semantic}, recomputing $\Compatible$ with the gate's function.
+
+\emph{Zero-knowledge host and TLS probe.} The host implements the prover and verifier of Section~\ref{sec:zklimits}. The TLS probe reads each reference client's negotiated group from the ServerHello in its trace (Section~\ref{sec:tls}).
+
+\subsection{Regression Results and What They Establish}
+\label{sec:tests}
+All \NumTests\ tests pass in the final run (\texttt{junit.xml}), including the opt-in zero-knowledge proof and TLS service tests; no test calls an LLM.
+
+Every obligation (i)--(xiii) has a rejection test, and further tests reject violations of individual checks and of the verifier's timing checks. Many re-sign altered statements with legitimate role keys, so only semantic checks can reject them. Table~\ref{tab:coverage} (supplementary material) maps checks to tests and lists the checks without a dedicated test.
+
+Contract tests show that a re-observation after a dependency change is refused without consuming the authorization; an authorization expiring before the \emph{apply} commit is not applied; changed policy content under an unchanged version number invalidates an approval; after a crash before \emph{apply} and a simulated restart, durable consumption alone refuses a replay although all four conjuncts hold; an archive with a drift-failed transaction verifies; and the approver refuses a recovery target below the floor, whereas one signed anyway by a key holder is refused by the executor and detected by the verifier. Section~\ref{s:tests} (supplementary material) lists the remaining groups.
+
+These tests show that the implemented checks reject the constructed violations. They do not estimate a detection rate, do not show that the obligations are complete or that every violating archive is rejected, and exercise durability only through injected faults (Section~\ref{sec:limits}).

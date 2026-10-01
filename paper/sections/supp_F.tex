@@ -1,0 +1,39 @@
+\section{Illustrative Service Migration}
+\label{sec:scenario}
+Consider an organization migrating key establishment for an internal service that carries long-lived sensitive information. The scenario illustrates the deployment contract of Section~\ref{sec:arch}. The reference implementation (Section~\ref{sec:proto}) executes a single-asset form of this contract: it records and checks the permitted recovery target but does not apply it, it implements neither staged rollout nor authentication checks, and its outcome observer reads the managed store rather than a deployed service. The approved target profile uses a protocol-supported ML-KEM deployment; a hybrid construction is identified by an approved protocol specification rather than assembled by the AI advisor. Authentication migration is tracked separately.
+
+\emph{Inventory and proposal.} Discovery records the service endpoints, owners, libraries, peer capabilities, certificate dependencies and current state versions. The advisor proposes migrating a compatible subset first and lists a dependency whose readiness is unknown. That dependency is recorded as unresolved, not assumed compatible.
+
+\emph{Evaluation and approval.} The gate evaluates the first three conjuncts of~(\ref{eq:gate}) on the signed snapshot, the current state and the active policy. The approver then signs the exact action, including the target configuration and the eligible endpoints, together with the digest of the observation, the expected state version, the policy version and digest, references to test evidence, an expiry within the approval lifetime of the policy, and a recovery target. A peer of unknown readiness cannot be part of the authorized batch. By default the recovery target is the current configuration if it meets the security floor, and service isolation otherwise; the approver refuses to authorize a recovery target that is neither isolation nor an allowlisted profile at or above the floor.
+
+\emph{Execution.} Immediately before acting, the executor re-evaluates all four conjuncts of~(\ref{eq:gate}) against the then-current state and the approved observation. If the observation is no longer fresh, if the state version, configuration, peer capabilities or implementations have changed since it was taken, or if the observation presented is not the approved one, the executor refuses, and a new transaction with a new observation and authorization is required. Otherwise the executor durably consumes the approval and records the attempt, applies the change by compare-and-set on the state version while re-checking the expiry in the same commit, and issues a receipt. Because the approval is consumed before the change begins, it cannot be replayed. An interrupted attempt blocks further governed changes to the asset until reconciliation establishes whether the change was applied.
+
+\emph{Outcome verification.} An outcome observer measures the resulting state independently of the receipt. For a deployed service, it observes the negotiated key-exchange group, the required authentication behavior and the specified health conditions from peers of each relevant capability class, because the group that one peer negotiates does not establish what peers of other classes receive~\cite{han} (Section~\ref{sec:tls}). A failed check marks the transaction failed and halts expansion. Recovery applies the authorized recovery target; any exception follows a separately authorized process.
+
+\emph{Audit closure.} The archive links the signed observation, the proposal (for a language-model advisor, together with the digest of its retained transcript), the policy evaluation, the approval, the execution receipt, the observed outcome and the checkpoint. From it an auditor can determine what the AI proposed, what was permitted, what was applied and what was observed; compared with the inventory, it also shows which assets remain outside the completed migration scope.
+
+\section{Failure Containment}
+\label{s:failures}
+Table~\ref{tab:failures} connects the principal failure cases to the controls and assumptions of Section~\ref{sec:assurance} and states the limitation that remains in each case.
+
+Compromise of the prover of a confidential predicate exposes the witness, including the policy parameters. Under the soundness assumption of the proof system, possession of a legitimate witness does not by itself allow a false relation to be proved for a fresh attested input; a false statement additionally requires a failure of the attestation source, of commitment binding, of the registered program or of the soundness of the proof system. Prover compromise is therefore assessed separately rather than treated as the failure of every cryptographic property.
+
+\begin{table*}[!t]
+\caption{Failure Cases and Assurance Boundaries}
+\label{tab:failures}
+\centering
+\begin{tabular}{>{\raggedright\arraybackslash}p{4.2cm}>{\raggedright\arraybackslash}p{5.8cm}>{\raggedright\arraybackslash}p{5.8cm}}
+\toprule
+Failure or compromise & Intended containment & Residual limitation \\
+\midrule
+Incorrect or manipulated AI proposal & Gate before approval and again at execution; approval of the exact action; policy-violating proposals of a completely compromised proposer are refused (Section~\ref{sec:advisor}) & Within-policy manipulation (an omitted ready peer, a weaker allowed profile) is not stopped by enforcement and is measured (Section~\ref{sec:advisor}); free text in a signed observation has an authenticated origin, not authenticated content; an inadequate policy can permit a poor choice \\
+Stale observation or concurrent change & Execution bound to the approved observation; freshness of its state version, configuration and dependencies under a policy-capped limit; compare-and-set on the state version & Observation semantics and clock assumptions remain trusted \\
+Interrupted deployment & Durable journal, one-time approval consumption and reconciliation; further changes to the asset blocked while an attempt is unresolved & Outcome unknown until reconciliation; a state that matches neither the prior nor the authorized successor state is recorded as failed, and no configuration is restored \\
+Log modification or deletion & Signatures, retained evidence, external checkpoints & Detection does not recover missing evidence \\
+Signing-key compromise & Earlier trustworthy checkpoints protect the history they anchor; semantic and key-validity checks reject inconsistent statements and statements outside a key's validity period & False but mutually consistent new statements remain possible until containment; the reference verifier checks an archive against one retained checkpoint, which must cover its last record \\
+Policy or executor compromise & Separate outcome observation may reveal discrepancies & Prevention fails inside the compromised boundary; an observer that reads the executor's store, as in the reference implementation, does not detect a falsified store \\
+Confidential-predicate prover compromise & Integrity of earlier evidence can survive independently & Witness confidentiality is lost; a false statement still requires another failed assumption \\
+Unmanaged asset or bypassed interface & Discovery and state reconciliation can reveal gaps & Universal coverage is not guaranteed \\
+\bottomrule
+\end{tabular}
+\end{table*}

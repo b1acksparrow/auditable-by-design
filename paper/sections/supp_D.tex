@@ -1,0 +1,63 @@
+\section{Transaction Evidence Fields}
+\label{s:fields}
+Table~\ref{tab:fields} lists the field groups of the transaction record of Section~\ref{sec:evidence}. A deployment must additionally specify the encoding, maximum sizes, error handling, and retention rules. Items marked with a dagger belong to the design but are not carried by the reference implementation.
+
+In the reference implementation, a record contains the signed source observation, the unsigned proposal, the signed authorization, the signed executor receipt and outcome observation where the status includes them, the envelope signed by the evidence service, the chain head of~(\ref{eq:chain}), and the witness checkpoint. A closed record therefore carries six signatures, including the checkpoint. A rejected record carries the signed denial, or the signed authorization that the executor refused, and neither a receipt nor an outcome observation. The artifacts of the optional private predicate (the policy registration signed by the policy authority, the source commitment attestation, the public statement, and the proof) are kept outside the transaction record. The verifier of the bound statement links them to the record by requiring that the signed authorization name the same transaction, asset, and action digest $D_i$ (Section~\ref{sec:zk}).
+
+Evidence references must resolve to retained artifacts: a digest without the underlying evidence supports integrity checking but not a substantive audit. Model identifiers support traceability without guaranteeing exact replay of a nondeterministic or remotely hosted model. When the advisor is a language model, its complete prompt and response are retained as a transcript, and the proposal references that transcript and every context document supplied to the model by domain-separated digest. These references make the retained artifacts checkable; they do not make the model's output reproducible.
+
+\begin{table*}[!t]
+\caption{Transaction Evidence Fields}
+\label{tab:fields}
+\centering
+\footnotesize
+\begin{tabular}{>{\raggedright\arraybackslash}p{3.0cm}>{\raggedright\arraybackslash}p{8.4cm}>{\raggedright\arraybackslash}p{4.2cm}}
+\toprule
+Field group & Required content & Purpose \\
+\midrule
+Identity and scope & Schema version, transaction identifier, asset reference, status, management boundary$^{\dagger}$ & Define what the record concerns \\
+Observation & Source identity, capture time, freshness limit, observed snapshot (state version, configuration, peer capabilities, implementations) and its digest, source signature & Establish provenance of the evaluated state \\
+AI proposal & Model identification, action, target profile and exact target configuration, endpoints, cited policy version, alternatives, unresolved dependencies, uncalibrated uncertainty note, advisory rationale, digest references to the observation, the context documents and the retained advisor transcript & Reconstruct the advisory contribution \\
+Policy and approval & Decision and approval basis, policy version and digest, observation and action digests, target profile, expected state version, gate conjunct outcomes, issue and expiry times, permitted recovery target, test evidence references, authorizer signature & Establish permission for the exact change \\
+Execution & Executor key identifier, attempt number, authorization and action digests, before- and after-versions, applied configuration digest, operation description, durable apply time, late-receipt flag, executor signature & Bind permission to the attempted operation \\
+Outcome and recovery & Receipt digest, independently observed state version, configuration and its digest, observed profile, health checks, recovery reference$^{\dagger}$, unresolved status and its resolution record & Establish assessed outcomes and exceptions \\
+Integrity and disclosure & Envelope (section digests, status, log identity, index, previous chain head, time) with the evidence-service signature, chain head, witness checkpoint, signer key identifiers, evidence manifest$^{\dagger}$, disclosure profile$^{\dagger}$ & Protect and locate the evidence \\
+Optional private predicate & Policy registration (commitment, predicate identifier and version, program identifier, applicable assets, validity period, maximum measurement age), source commitment attestation, public statement ($C_v$, $X_i$, $\kappa_i$, $D_i$, $v$, predicate identifier, $q_i$), proof & Verify a specified confidential condition \\
+\bottomrule
+\end{tabular}
+\par\smallskip\parbox{\linewidth}{\footnotesize\raggedright $^{\dagger}$Part of the design; not carried by the reference implementation, which validates and records the permitted recovery target but executes no recovery operation.}
+\end{table*}
+
+\section{Encoding, Signatures, and Checkpoints}
+\label{s:chain}
+This section details the canonical encoding, signatures, and checkpoints of Section~\ref{sec:evidence}. Signed values are restricted to printable-ASCII strings, Booleans, null, integers within $\pm(2^{53}-1)$, arrays, and objects with printable-ASCII string keys. The encoder rejects all other input, including floating-point values, non-string keys, and control characters. For this value space the serialization of the JSON Canonicalization Scheme (JCS)~\cite{jcs} reduces to sorted keys, no whitespace, shortest integer form, and JSON string escaping, and the encoder's output coincides with it. For general JSON, sorting object keys alone is not a complete canonicalization. Digests that the verifier compares are SHA-384 over a purpose label, a zero byte, and the data. Separate labels are used for signed statements and policy content, actions, snapshots and configurations, chain links, commitments, advisor transcripts, and context documents, so a digest under one label cannot be presented as a digest under another. Hash and signature suites are versioned and chosen for the intended retention period and quantum-security target; no quantitative security level follows from the description ``hash-based'' alone.
+
+Each role holds its own key, and a signer refuses a statement labeled with another role; the verifier accepts a statement only if it names the role expected for its section and verifies under a key of that role. Verifiers need the key-validity history and revocation information for the relevant period. The reference implementation represents validity as a period per key and has no revocation mechanism.
+
+Append-only logs such as Certificate Transparency~\cite{ct} motivate the checkpoint construction, but the signature suite of an existing log must not be assumed post-quantum secure. The design requires verifiers to retain or independently retrieve checkpoint history and to check continuity between retained checkpoints; checking only that a checkpoint identifier exists is insufficient. Besides the independently retained checkpoint, the reference verifier checks each checkpoint carried in the archive (witness signature at the witness time, log identity, sequence number, and head), and it requires the retained checkpoint to be dated neither before the last envelope nor after the verifier's reference time.
+
+\section{Control-to-Evidence Mapping}
+\label{s:controls}
+Table~\ref{tab:controls}, cited from Section~\ref{sec:evidence}, gives an author-proposed mapping of the evidence to selected controls of National Institute of Standards and Technology (NIST) Special Publication (SP) 800-53 Rev.~5~\cite{sp80053}. It is an assessment aid, not an official NIST crosswalk or proof that a control is satisfied. An organization must select the applicable baseline, tailor parameters, and agree on the assessment procedure.
+
+The reference implementation produces evidence for part of this mapping: signed, chained, and checkpointed records for every terminal transaction, and for an unresolved one when archived, including denials (AU-2, AU-3, AU-9, AU-12); exact-change approval with recorded gate outcomes (CM-3); versioned asset configurations (CM-2); a single role with write access to the managed store, separated only logically within one process (AC-6, CM-5); and outcome checks, drift detection, and reconciliation of interrupted attempts (CA-7). It produces no ownership records, impact assessments, compatibility test results beyond declared peer capabilities, access reviews, or key-management evidence, and no assessor has evaluated the mapping (Section~\ref{sec:limits}).
+
+An auditor evaluates evidence against a stated objective. A signature establishes record authenticity but leaves the adequacy of the policy open. A passing interoperability test establishes the tested outcome for the tested population, and an approved algorithm does not establish correct application-level integration. The evidence package preserves these distinctions.
+
+\begin{table*}[!t]
+\caption{Illustrative Control-to-Evidence Mapping}
+\label{tab:controls}
+\centering
+\begin{tabular}{>{\raggedright\arraybackslash}p{4.4cm}>{\raggedright\arraybackslash}p{3.6cm}>{\raggedright\arraybackslash}p{7.4cm}}
+\toprule
+Audit objective & Selected control references & Proposed evidence \\
+\midrule
+Establish asset and configuration scope & CM-8, CM-2 & Inventory, ownership, dependencies, versioned baseline \\
+Review and authorize changes & CM-3, CM-4 & Impact assessment, compatibility tests, exact-change approval \\
+Restrict change authority & AC-6, CM-5 & Role definitions, executor privileges, access review \\
+Establish cryptographic protection and key management & SC-13, SC-12 & Approved profile, implementation status, KMS or PKI evidence \\
+Produce and protect audit records & AU-2, AU-3, AU-9, AU-12 & Event definitions, signed records, retention, checkpoints \\
+Monitor the resulting configuration & CA-7 & Outcome checks, drift findings, reconciliation exceptions \\
+\bottomrule
+\end{tabular}
+\end{table*}

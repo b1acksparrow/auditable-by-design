@@ -1,0 +1,36 @@
+\section{Optional Verification of Confidential Policy Predicates}
+\label{sec:zk}
+
+\subsection{Purpose and Deployment Boundary}
+\label{sec:zkboundary}
+The optional extension lets a verifier establish that a registered predicate over withheld policy parameters and a withheld measurement evaluated to the recorded result for an authorized action. The proof does not establish that the parameters are adequate, that the action was executed, or that the migration complies with regulation.
+
+Whoever generates a proof processes the complete witness, so the prover lies inside the confidentiality boundary with the policy evaluator, secret copies, backups, and operator access. Local proving keeps the witness from third parties but not from the evaluator's host, its administrator, or the file system holding the temporary witness file.
+
+\subsection{Bound Public Statement}
+Let $\theta$ contain the confidential parameters of a predicate $Q$ in approved version $v$, and let $\kappa_i$ identify the transaction, asset, state version, and measurement period. With a hiding and binding commitment scheme,
+\begin{align}
+C_v &= \Com(\Enc(v,\theta); r), \label{eq:cv}\\
+X_i &= \Com(\Enc(\kappa_i, x_i); r_i), \label{eq:xi}
+\end{align}
+where a trusted source measures $x_i$ itself and signs $X_i$ with $\kappa_i$, its identity, the capture time, and a freshness limit. The policy authority signs a registration of $C_v$, $v$, the predicate identifier $p$, the identifier $I_R$ of the program that decides~(\ref{eq:rel}), the applicable assets, a validity period, and a maximum measurement age. $D_i$ is the canonical digest of the proposed action $a_i$ that the authorization and the receipt bind. The public statement, with $p$ and the Boolean result $q_i$, satisfies
+\begin{multline}
+\label{eq:rel}
+R = \{ ((C_v, X_i, \kappa_i, D_i, v, p, q_i);\ \theta, r, x_i, r_i, a_i) : \\
+C_v = \Com(\Enc(v,\theta); r) \wedge X_i = \Com(\Enc(\kappa_i,x_i); r_i) \\
+\wedge D_i = H(\Enc(a_i)) \wedge q_i = Q^{p}_{v,\theta}(x_i, a_i) \}.
+\end{multline}
+
+The verifier requires a current, signed registration covering the asset and the statement's $C_v$, $v$, and $p$; a signed source attestation of $X_i$ and $\kappa_i$, fresh within the smaller of the attested limit and the registered maximum age; a signed authorization of the same transaction, asset, and $D_i$; and a proof for $I_R$ or, for an authorized reviewer, an opening of the commitments. Otherwise it fails closed.
+
+Because a proof attests only to the program it is checked against, the verifier takes $I_R$ from the signed registration, never from the prover, and rejects a proof if the registration names none. The program recomputes $C_v$, $X_i$, and $D_i$, selects $Q$ from a fixed catalog by $p$, and outputs the canonical encoding of the complete statement, which must equal the verifier's encoding byte for byte. If the proof system is sound, the program implements $R$, and the commitments and the digest are binding, an accepted proof implies a witness satisfying~(\ref{eq:rel}) (Sections~\ref{s:zkstatement}--\ref{s:zkencoding}, supplementary material).
+
+\subsection{Instantiation and Cryptographic Limits}
+\label{sec:zklimits}
+The program runs in the RISC Zero zero-knowledge virtual machine (zkVM)~\cite{risc0}, version \ZkVersion. The host proves with an explicit local, in-process prover, without the vendor's remote-proving client, and with the proof-free development mode compiled out. It produces and accepts only succinct receipts, which compress the segment proofs of the scalable transparent argument of knowledge (STARK) into one hash-based recursion proof; Groth16-wrapped receipts are not post-quantum~\cite{risc0sec}.
+
+The verifier accepts only a receipt lifted from a single segment of at most $2^{\ZkMaxPo}$ cycles. For the worst accepted receipt, the vendor's soundness calculator gives \ZkSegBits~bits for the segment and \ZkRecBits~bits for the recursion under its default toy-model conjecture, hence \ZkEndBits~bits end to end; the stricter list-decoding conjecture gives \ZkStrictBits~bits, and \ZkProvenBits~bits hold without either conjecture. The vendor's 99-bit figure~\cite{risc0sec} covers only the recursion. Larger segments yield fewer bits; longer predicates would need multi-segment receipts and a re-evaluated bound.
+
+A succinct receipt does not hide the execution length: its public control identifier names the last recursion program, which for one segment is the lift program for the padded power-of-two cycle count (here $2^{\ZkPo}$) and otherwise the join program. The length can depend on $\theta$, such as the size of a permitted set.
+
+RISC Zero targets perfect zero knowledge but has not written a mathematical argument for it~\cite{risc0sec}. Confidentiality of $\theta$, $r$, $x_i$, and $r_i$ against a receipt holder therefore rests on this assumption and on commitment hiding, which holds when SHA-384 is modeled as a random oracle. Soundness depends on neither. The statement itself discloses information about $\theta$ (Section~\ref{s:zkprivacy}, supplementary material).

@@ -1,0 +1,89 @@
+{
+  "method": "fresh process, VmHWM, includes loading/decoding the archive; earlier prototype full_verify (in-memory design)",
+  "results": [
+    {
+      "completed": true,
+      "verified": true,
+      "records": 1000,
+      "peak_rss_mib": 77.3046875,
+      "wall_s_load_and_verify": 0.35,
+      "message": "ok",
+      "transactions": 1000,
+      "archive_mib": 41.912516593933105,
+      "build_s": 0.7581692640014808,
+      "run_conditions": {
+        "power": {
+          "ac_online": true,
+          "battery_status": "Full"
+        },
+        "cpufreq_governors": [
+          "powersave"
+        ],
+        "loadavg_1_5_15": [
+          1.4892578125,
+          5.99853515625,
+          5.09375
+        ],
+        "results_filesystem": "/dev/nvme0n1p2 ext4",
+        "waited_for_quiet_s": 100.0
+      },
+      "address_space_limit_gib": 12.0
+    },
+    {
+      "completed": true,
+      "verified": true,
+      "records": 10000,
+      "peak_rss_mib": 529.0859375,
+      "wall_s_load_and_verify": 3.43,
+      "message": "ok",
+      "transactions": 10000,
+      "archive_mib": 419.17272758483887,
+      "build_s": 7.515652417001547,
+      "run_conditions": {
+        "power": {
+          "ac_online": true,
+          "battery_status": "Full"
+        },
+        "cpufreq_governors": [
+          "powersave"
+        ],
+        "loadavg_1_5_15": [
+          1.4892578125,
+          5.99853515625,
+          5.09375
+        ],
+        "results_filesystem": "/dev/nvme0n1p2 ext4",
+        "waited_for_quiet_s": 0.0
+      },
+      "address_space_limit_gib": 12.0
+    },
+    {
+      "completed": true,
+      "verified": true,
+      "records": 100000,
+      "peak_rss_mib": 5050.73828125,
+      "wall_s_load_and_verify": 35.26,
+      "message": "ok",
+      "transactions": 100000,
+      "archive_mib": 4192.203965187073,
+      "build_s": 74.97610060300212,
+      "run_conditions": {
+        "power": {
+          "ac_online": true,
+          "battery_status": "Full"
+        },
+        "cpufreq_governors": [
+          "powersave"
+        ],
+        "loadavg_1_5_15": [
+          1.494140625,
+          5.85009765625,
+          5.0546875
+        ],
+        "results_filesystem": "/dev/nvme0n1p2 ext4",
+        "waited_for_quiet_s": 0.0
+      },
+      "address_space_limit_gib": 12.0
+    }
+  ]
+}

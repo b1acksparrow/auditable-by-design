@@ -1,0 +1,32 @@
+\usepackage[T1]{fontenc}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{url}
+\usepackage{cite}
+\usepackage{xcolor}
+\usepackage{textcomp}
+\usepackage{listings}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric}
+\usepackage[hidelinks]{hyperref}
+\usepackage{balance}
+
+\input{results_macros}
+
+\lstset{basicstyle=\ttfamily\footnotesize,breaklines=true,columns=fullflexible,frame=single,
+  showstringspaces=false,keepspaces=true,upquote=true}
+
+\newcommand{\Fresh}{\mathrm{Fresh}}
+\newcommand{\Allowed}{\mathrm{Allowed}}
+\newcommand{\Compatible}{\mathrm{Compatible}}
+\newcommand{\Authorized}{\mathrm{Authorized}}
+\newcommand{\Com}{\mathrm{Com}}
+\newcommand{\Enc}{\mathrm{Enc}}
+\newcommand{\code}[1]{\texttt{\footnotesize #1}}
+
+% let long URLs in the references break after slashes and hyphens
+\def\UrlBreaks{\do\/\do-\do.\do_}
+% set the references ragged-right so that long unbreakable URLs do not stretch the word spacing
+\usepackage{etoolbox}
+\AtBeginEnvironment{thebibliography}{\raggedright}
